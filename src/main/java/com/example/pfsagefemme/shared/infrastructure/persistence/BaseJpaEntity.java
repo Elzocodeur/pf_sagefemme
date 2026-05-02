@@ -1,0 +1,54 @@
+package com.example.pfsagefemme.shared.infrastructure.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Classe mere de toutes les entites JPA - centralise l'identite et l'audit.
+ *
+ * Champs auto-renseignes :
+ *   - id          : UUID genere cote Hibernate
+ *   - createdAt   : horodatage de creation
+ *   - updatedAt   : horodatage de derniere modification
+ *   - createdBy   : utilisateur courant (resolu via {@link com.example.pfsagefemme.shared.infrastructure.config.AuditorAwareConfig})
+ */
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+public abstract class BaseJpaEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @CreatedBy
+    @Column(name = "created_by", updatable = false, length = 100)
+    private String createdBy;
+}

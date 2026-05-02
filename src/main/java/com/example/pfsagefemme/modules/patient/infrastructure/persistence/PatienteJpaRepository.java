@@ -1,0 +1,261 @@
+package com.example.pfsagefemme.modules.patient.infrastructure.persistence;
+
+import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
+import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
+import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
+
+    List<Patiente> findByPosteSanteId(UUID posteSanteId);
+
+    List<Patiente> findBySageFemmeId(UUID sageFemmeId);
+
+    List<Patiente> findByStatutPatiente(StatutPatienteEnum statut);
+
+    List<Patiente> findByPvvihTrue();
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%')))
+            ORDER BY p.nom, p.prenom
+            """)
+    List<Patiente> search(@Param("q") String query, @Param("posteSanteId") UUID posteSanteId);
+
+    /**
+     * Compte les patientes correspondant a un statut + une methode contraceptive
+     * (lue sur la fiche de consultation associee) + une tranche d'age + un poste.
+     */
+    @Query("""
+            SELECT COUNT(p)
+            FROM Patiente p, FicheConsultation f
+            WHERE f.patiente = p
+              AND p.statutPatiente = :statut
+              AND f.methodeChoisie = :methode
+              AND p.age BETWEEN :ageMin AND :ageMax
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countByStatutPatienteAndMethodeAndTrancheAge(
+            @Param("statut") StatutPatienteEnum statut,
+            @Param("methode") MethodeContraceptiveEnum methode,
+            @Param("ageMin") int ageMin,
+            @Param("ageMax") int ageMax,
+            @Param("posteSanteId") UUID posteSanteId
+    );
+
+    // ====== PVVIH ============================================================
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countAllPvvih(@Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND p.statutPatiente = :statut
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countPvvihByStatut(@Param("statut") StatutPatienteEnum statut,
+                            @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND p.dateInscription BETWEEN :from AND :to
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countPvvihInscritesEntre(@Param("from") LocalDate from,
+                                  @Param("to") LocalDate to,
+                                  @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            ORDER BY p.dateInscription DESC, p.nom
+            """)
+    List<Patiente> findPvvih(@Param("posteSanteId") UUID posteSanteId);
+
+    // ====== Cycle de vie =====================================================
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.statutPatiente IN :statuts
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            ORDER BY p.dateArret DESC NULLS LAST, p.nom
+            """)
+    List<Patiente> findByStatutPatienteIn(@Param("statuts") List<StatutPatienteEnum> statuts,
+                                          @Param("posteSanteId") UUID posteSanteId);
+
+    /**
+     * Patientes ACTIVE dont la derniere visite est anterieure au seuil
+     * (ou sans visite du tout depuis une date d'inscription assez ancienne).
+     */
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND NOT EXISTS (
+                  SELECT 1 FROM Visite v
+                  WHERE v.patiente = p AND v.date >= :threshold
+              )
+              AND p.dateInscription < :threshold
+            ORDER BY p.dateInscription
+            """)
+    List<Patiente> findInactivesSince(@Param("threshold") LocalDate threshold,
+                                      @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE EXTRACT(YEAR FROM p.dateInscription) = :year
+            """)
+    long countByYearOfDateInscription(@Param("year") int year);
+
+    Optional<Patiente> findByNumeroDossier(String numeroDossier);
+
+    // ====== Comptages avec fenetre temporelle (rapport mensuel) ==============
+
+    @Query("""
+            SELECT COUNT(DISTINCT p)
+            FROM Patiente p, FicheConsultation f
+            WHERE f.patiente = p
+              AND p.dateInscription BETWEEN :from AND :to
+              AND f.methodeChoisie = :methode
+              AND p.age BETWEEN :ageMin AND :ageMax
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countNouvellesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
+                                       @Param("ageMin") int ageMin,
+                                       @Param("ageMax") int ageMax,
+                                       @Param("from") LocalDate from,
+                                       @Param("to") LocalDate to,
+                                       @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT p)
+            FROM Patiente p, FicheConsultation f
+            WHERE f.patiente = p
+              AND p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
+              AND f.methodeChoisie = :methode
+              AND p.age BETWEEN :ageMin AND :ageMax
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countActivesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
+                                     @Param("ageMin") int ageMin,
+                                     @Param("ageMax") int ageMax,
+                                     @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT p)
+            FROM Patiente p, FicheConsultation f
+            WHERE f.patiente = p
+              AND f.methodeChoisie = :methode
+              AND p.age BETWEEN :ageMin AND :ageMax
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (
+                  (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ARRETEE
+                       AND p.dateArret BETWEEN :from AND :to)
+                  OR p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
+                  OR p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.INACTIVE
+              )
+            """)
+    long countInactivesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
+                                       @Param("ageMin") int ageMin,
+                                       @Param("ageMax") int ageMax,
+                                       @Param("from") LocalDate from,
+                                       @Param("to") LocalDate to,
+                                       @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
+              AND p.age BETWEEN :ageMin AND :ageMax
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countPvvihActivesByAge(@Param("ageMin") int ageMin,
+                                @Param("ageMax") int ageMax,
+                                @Param("posteSanteId") UUID posteSanteId);
+
+    // ====== Journal du jour ==================================================
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.dateInscription = :date
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countNouvellesOnDate(@Param("date") LocalDate date,
+                              @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.dateArret = :date
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countArreteesOnDate(@Param("date") LocalDate date,
+                             @Param("posteSanteId") UUID posteSanteId);
+
+    // ====== Dashboard ========================================================
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countAllByPoste(@Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.statutPatiente = :statut
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countByStatutAndPoste(@Param("statut") com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum statut,
+                               @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countPvvihByPoste(@Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.dateInscription BETWEEN :from AND :to
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countNouvellesInscritesEntre(@Param("from") LocalDate from,
+                                      @Param("to") LocalDate to,
+                                      @Param("posteSanteId") UUID posteSanteId);
+
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE p.dateArret BETWEEN :from AND :to
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            """)
+    long countArreteesEntre(@Param("from") LocalDate from,
+                            @Param("to") LocalDate to,
+                            @Param("posteSanteId") UUID posteSanteId);
+
+    /** Top N patientes ACTIVE triees par date de derniere visite descendante (NULLS LAST). */
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            ORDER BY (SELECT MAX(v.date) FROM Visite v WHERE v.patiente = p) DESC NULLS LAST,
+                     p.dateInscription DESC
+            """)
+    List<Patiente> findActivesOrderByLastVisitDesc(@Param("posteSanteId") UUID posteSanteId,
+                                                   org.springframework.data.domain.Pageable pageable);
+}
