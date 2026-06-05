@@ -3,6 +3,7 @@ package com.example.pfsagefemme.modules.dashboard.infrastructure.rest;
 import com.example.pfsagefemme.modules.dashboard.domain.port.in.GetSageFemmeDashboardUseCase;
 import com.example.pfsagefemme.modules.dashboard.infrastructure.rest.dto.SageFemmeDashboardResponse;
 import com.example.pfsagefemme.modules.dashboard.infrastructure.rest.mapper.DashboardWebMapper;
+import com.example.pfsagefemme.modules.user.domain.model.entity.AdminPoste;
 import com.example.pfsagefemme.modules.user.domain.model.entity.SageFemme;
 import com.example.pfsagefemme.modules.user.domain.port.in.GetCurrentUserUseCase;
 import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
@@ -55,6 +56,9 @@ public class DashboardController {
         if (u instanceof SageFemme sf && sf.getPosteSante() != null) {
             return sf.getPosteSante().getId();
         }
-        return null; // SUPER_ADMIN ou ADMIN sans poste -> vue globale
+        if (u instanceof AdminPoste ap && ap.getPosteSante() != null) {
+            return ap.getPosteSante().getId();
+        }
+        return null; // SUPER_ADMIN -> vue globale
     }
 }
