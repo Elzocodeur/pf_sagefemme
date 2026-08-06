@@ -1,0 +1,4855 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "PlaniFem - API de Planification Familiale",
+        "description": "API REST pour la gestion de la planification familiale dans les postes de sante.\n\n**Hierarchie des roles** :\n- `SUPER_ADMIN` : cree les postes de sante et les administrateurs de poste\n- `ADMIN_POSTE` : gere son poste, cree les sages-femmes\n- `SAGE_FEMME` : gere les patientes, consultations et visites\n\n**Authentification** : POST /api/v1/auth/login pour obtenir un JWT,\npuis envoyer `Authorization: Bearer <token>` sur tous les autres endpoints.\n",
+        "contact": {
+            "name": "Equipe PlaniFem",
+            "email": "contact@planifem.local"
+        },
+        "license": {
+            "name": "Proprietary"
+        },
+        "version": "v1"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "Local"
+        },
+        {
+            "url": "/",
+            "description": "Current host"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "6 - Chef de poste : Sages-femmes (ADMIN_POSTE)",
+            "description": "Ecran 'Effectif' - liste des sages-femmes du poste avec stats patientes et activite"
+        },
+        {
+            "name": "7 - Chef de poste : Statistiques poste (ADMIN_POSTE)",
+            "description": "Ecran 'Statistiques poste / Vue generale' - KPIs + actives recentes + a surveiller + repartition methodes"
+        },
+        {
+            "name": "5 - Utilisateurs (administration)",
+            "description": "Listing, stats, activation et desactivation des utilisateurs"
+        },
+        {
+            "name": "5 - Postes de sante",
+            "description": "CRUD + dashboard des postes de sante (creation/modif/activation par SUPER_ADMIN, consultation pour tous)"
+        },
+        {
+            "name": "8 - PVVIH (Section 5.2.3)",
+            "description": "Tableau de bord et listing des patientes vivant avec le VIH"
+        },
+        {
+            "name": "10 - Chef de poste : Mon poste de sante (ADMIN_POSTE)",
+            "description": "Ecran 'Configuration de l'unite' - lecture et modification des informations du poste"
+        },
+        {
+            "name": "9 - Chef de poste : Rapport mensuel PF (ADMIN_POSTE)",
+            "description": "Ecran 'Rapport mensuel' - rapport agrege du poste : sections 5.2.1 / 5.2.2 / 5.2.4 + KPIs"
+        },
+        {
+            "name": "14 - Rapport National PF (SUPER_ADMIN)",
+            "description": "Rapport National PF - agregat tous postes pour un mois donne (Section 5.2 + LARC + Hormonaux)"
+        },
+        {
+            "name": "3 - Chefs de poste (SUPER_ADMIN)",
+            "description": "Creation des chefs de poste (= AdminPoste). Reservee strictement au SUPER_ADMIN."
+        },
+        {
+            "name": "8 - Chef de poste : Fiches PF du poste (ADMIN_POSTE)",
+            "description": "Ecran 'Registre complet' - toutes les patientes du poste avec methode, sage-femme et prochain RDV"
+        },
+        {
+            "name": "2 - Super admins (SUPER_ADMIN)",
+            "description": "Creation des super-administrateurs nationaux"
+        },
+        {
+            "name": "1 - Authentication",
+            "description": "Login, profil courant, changement de mot de passe"
+        },
+        {
+            "name": "4 - Sages-femmes (ADMIN_POSTE, SUPER_ADMIN)",
+            "description": "Creation des sages-femmes"
+        },
+        {
+            "name": "11 - Rapport mensuel PF",
+            "description": "Generation, lecture et soumission au district du rapport mensuel PF (sections 5.2.1 a 5.2.4 + matrice changement)"
+        },
+        {
+            "name": "13 - Statistiques nationales (SUPER_ADMIN)",
+            "description": "Vue agregee : 5 cards globales + tableau par poste + dernieres patientes"
+        },
+        {
+            "name": "6 - Patientes (SAGE_FEMME)",
+            "description": "Creation et consultation des dossiers patientes"
+        },
+        {
+            "name": "7 - Visites de suivi (SAGE_FEMME)",
+            "description": "Enregistrement des visites cliniques de suivi des patientes"
+        },
+        {
+            "name": "10 - Journal du jour",
+            "description": "Vue journaliere : compteurs + liste filtrable des patientes consultees"
+        },
+        {
+            "name": "9 - Statuts patientes",
+            "description": "Dashboard arretees / abandons + transitions de cycle de vie"
+        },
+        {
+            "name": "12 - Dashboard sage-femme",
+            "description": "Vue d'ensemble : KPIs, activite 7 jours, abandons a relancer, actives recentes"
+        }
+    ],
+    "paths": {
+        "/api/v1/visites/{id}/validate": {
+            "post": {
+                "tags": [
+                    "7 - Visites de suivi (SAGE_FEMME)"
+                ],
+                "summary": "Valide une visite en brouillon",
+                "description": "Idempotent : appel sur une visite deja validee renvoie la visite sans changement.",
+                "operationId": "validate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Visite validee",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VisiteDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Visite introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports/{id}/validate": {
+            "post": {
+                "tags": [
+                    "11 - Rapport mensuel PF"
+                ],
+                "summary": "Valide un rapport (BROUILLON -> VALIDE)",
+                "operationId": "validate_1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportMensuelResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports/{id}/submit": {
+            "post": {
+                "tags": [
+                    "11 - Rapport mensuel PF"
+                ],
+                "summary": "Soumet le rapport au District (BROUILLON/VALIDE -> SOUMIS)",
+                "description": "Bouton 'Soumettre au District' du frontend. Apres soumission, le rapport est gele.",
+                "operationId": "submit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportMensuelResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports/generate": {
+            "post": {
+                "tags": [
+                    "11 - Rapport mensuel PF"
+                ],
+                "summary": "Genere le rapport mensuel pour la periode (idempotent sur BROUILLON)",
+                "description": "Cree un nouveau rapport BROUILLON ou regenere l'existant si encore BROUILLON.\nSi le rapport est deja VALIDE ou SOUMIS, la regeneration est refusee.\n",
+                "operationId": "generate",
+                "parameters": [
+                    {
+                        "name": "mois",
+                        "in": "query",
+                        "description": "Mois (1-12)",
+                        "required": true,
+                        "schema": {
+                            "maximum": 12,
+                            "minimum": 1,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "description": "Annee",
+                        "required": true,
+                        "schema": {
+                            "maximum": 2100,
+                            "minimum": 2000,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Poste de sante (defaut : poste de la sage-femme connectee)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Rapport genere",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportMensuelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Rapport deja valide / soumis"
+                    },
+                    "404": {
+                        "description": "Sage-femme ou poste introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/postes-sante": {
+            "get": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Liste enrichie pour le tableau (avec compteurs patientes + SF par poste)",
+                "description": "Filtre actif=true (Actifs), actif=false (Inactifs), absent (Tous).",
+                "operationId": "list",
+                "parameters": [
+                    {
+                        "name": "actif",
+                        "in": "query",
+                        "description": "Filtre Tous (omettre) / Actifs (true) / Inactifs (false)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PosteSanteRowResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Cree un poste de sante avec son responsable",
+                "description": "Reserve aux SUPER_ADMIN.",
+                "operationId": "create",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePosteSanteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "403": {
+                        "description": "Reserve aux SUPER_ADMIN"
+                    },
+                    "201": {
+                        "description": "Poste cree",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PosteSanteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/postes-sante/{id}/deactivate": {
+            "post": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Desactive un poste de sante",
+                "operationId": "deactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PosteSanteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/postes-sante/{id}/activate": {
+            "post": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Active un poste de sante",
+                "operationId": "activate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PosteSanteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/patientes": {
+            "get": {
+                "tags": [
+                    "6 - Patientes (SAGE_FEMME)"
+                ],
+                "summary": "Recherche de patientes (par nom ou prenom)",
+                "description": "Renvoie une liste resumee. Le filtre par poste est optionnel - si null, recherche globale.",
+                "operationId": "search",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Terme de recherche (partiel, insensible a la casse)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste de sante",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PatienteSummary"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "6 - Patientes (SAGE_FEMME)"
+                ],
+                "summary": "Cree un dossier patient complet",
+                "description": "Cree atomiquement la patiente, sa fiche de consultation (antecedents + methode choisie)\net la 1ere visite. La patiente est automatiquement rattachee au poste de sante de la\nsage-femme appelante.\n\nReserve aux SAGE_FEMME (la sage-femme doit etre rattachee a un poste).\n",
+                "operationId": "create_1",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePatientFolderRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "403": {
+                        "description": "Reserve aux SAGE_FEMME"
+                    },
+                    "201": {
+                        "description": "Dossier cree",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PatientFolderResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Sage-femme non rattachee a un poste"
+                    },
+                    "400": {
+                        "description": "Validation echouee"
+                    }
+                }
+            }
+        },
+        "/api/v1/patientes/{patienteId}/visites": {
+            "get": {
+                "tags": [
+                    "7 - Visites de suivi (SAGE_FEMME)"
+                ],
+                "summary": "Liste les visites d'une patiente (de la plus recente a la plus ancienne)",
+                "operationId": "listByPatiente",
+                "parameters": [
+                    {
+                        "name": "patienteId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/VisiteDetailResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "7 - Visites de suivi (SAGE_FEMME)"
+                ],
+                "summary": "Enregistre une nouvelle visite de suivi",
+                "description": "Cree une visite (constantes + observations) pour une patiente existante.\n\nSi le bloc {@code methodChange} est fourni, la visite acte EN PLUS un changement\nde methode contraceptive : un {@code ChangementMethode} est cree et la methode\ncourante de la fiche de consultation est mise a jour. Tout est atomique.\n\nLe champ {@code statut} accepte BROUILLON ou VALIDEE (defaut : VALIDEE).\n",
+                "operationId": "create_2",
+                "parameters": [
+                    {
+                        "name": "patienteId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateVisiteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Visite creee",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VisiteDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Patiente introuvable"
+                    },
+                    "422": {
+                        "description": "Changement de methode invalide (pas de methode courante, ou identique)"
+                    }
+                }
+            }
+        },
+        "/api/v1/patientes/{id}/reprendre": {
+            "post": {
+                "tags": [
+                    "9 - Statuts patientes"
+                ],
+                "summary": "Reprend une patiente arretee/abandonnee",
+                "description": "Bouton 'Reprendre' du dashboard. Repasse la patiente en ACTIVE.",
+                "operationId": "reprendre",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReprisePatienteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "422": {
+                        "description": "Patiente deja active"
+                    },
+                    "204": {
+                        "description": "Patiente reprise"
+                    },
+                    "404": {
+                        "description": "Patiente introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/patientes/{id}/arreter": {
+            "post": {
+                "tags": [
+                    "9 - Statuts patientes"
+                ],
+                "summary": "Marque une patiente comme ARRETEE",
+                "description": "Reserve aux SAGE_FEMME. Si deja ARRETEE, renvoie la patiente sans changement (idempotent).",
+                "operationId": "arreter",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ArretPatienteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "Patiente arretee"
+                    },
+                    "404": {
+                        "description": "Patiente introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "1 - Authentication"
+                ],
+                "summary": "Connexion (login)",
+                "description": "Authentifie un utilisateur par email + mot de passe et renvoie un JWT.",
+                "operationId": "login",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Authentification reussie",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Identifiants invalides ou compte desactive"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/v1/auth/change-password": {
+            "post": {
+                "tags": [
+                    "1 - Authentication"
+                ],
+                "summary": "Change le mot de passe de l'utilisateur courant",
+                "operationId": "changePassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "Mot de passe change"
+                    },
+                    "401": {
+                        "description": "Mot de passe courant incorrect"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}/activate": {
+            "post": {
+                "tags": [
+                    "5 - Utilisateurs (administration)"
+                ],
+                "summary": "Reactive un utilisateur",
+                "operationId": "activate_1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/super-admins": {
+            "post": {
+                "tags": [
+                    "2 - Super admins (SUPER_ADMIN)"
+                ],
+                "summary": "Cree un SuperAdmin",
+                "description": "Reserve aux SUPER_ADMIN existants. Un ADMIN_POSTE n'a PAS le droit de creer un SuperAdmin.",
+                "operationId": "create_3",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSuperAdminRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "403": {
+                        "description": "Reserve aux SUPER_ADMIN"
+                    },
+                    "201": {
+                        "description": "SuperAdmin cree",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Email ou identifiant deja utilise"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/sages-femmes": {
+            "post": {
+                "tags": [
+                    "4 - Sages-femmes (ADMIN_POSTE, SUPER_ADMIN)"
+                ],
+                "summary": "Cree une sage-femme",
+                "description": "Accessible aux SUPER_ADMIN et ADMIN_POSTE.\n- ADMIN_POSTE : la sage-femme herite automatiquement de son poste, le `posteSanteId` du body est ignore.\n- SUPER_ADMIN : doit fournir le `posteSanteId` cible dans le body.\n",
+                "operationId": "create_4",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSageFemmeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "422": {
+                        "description": "Email/identifiant deja utilise ou admin non rattache a un poste"
+                    },
+                    "403": {
+                        "description": "Reserve aux SUPER_ADMIN/ADMIN_POSTE"
+                    },
+                    "201": {
+                        "description": "Sage-femme creee",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/admin-postes": {
+            "post": {
+                "tags": [
+                    "3 - Chefs de poste (SUPER_ADMIN)"
+                ],
+                "summary": "Cree un Chef de poste et l'affecte a un poste de sante",
+                "description": "Reserve au SUPER_ADMIN. Un chef de poste (ADMIN_POSTE) ne peut PAS creer un autre chef de poste.",
+                "operationId": "create_5",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAdminPosteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "403": {
+                        "description": "Reserve au SUPER_ADMIN"
+                    },
+                    "404": {
+                        "description": "Poste de sante introuvable"
+                    },
+                    "201": {
+                        "description": "Chef de poste cree",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Email ou identifiant deja utilise"
+                    }
+                }
+            }
+        },
+        "/api/v1/postes-sante/{id}": {
+            "get": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Detail d'un poste de sante",
+                "operationId": "getById",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PosteSanteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Modifie un poste de sante (champs partiels)",
+                "operationId": "update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePosteSanteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PosteSanteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chef-poste/mon-poste": {
+            "get": {
+                "tags": [
+                    "10 - Chef de poste : Mon poste de sante (ADMIN_POSTE)"
+                ],
+                "summary": "Informations du poste de sante",
+                "description": "Retourne les donnees institutionnelles du poste : nom, district, region, responsable, contacts.",
+                "operationId": "get",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MonPosteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "10 - Chef de poste : Mon poste de sante (ADMIN_POSTE)"
+                ],
+                "summary": "Modifier les informations du poste",
+                "description": "Met a jour les champs institutionnels : nom, district, region, responsable, telephone, email. Seuls les champs fournis sont modifies (PATCH semantics).",
+                "operationId": "update_1",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMonPosteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Modifications enregistrees",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MonPosteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Poste introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/statuts/stats": {
+            "get": {
+                "tags": [
+                    "9 - Statuts patientes"
+                ],
+                "summary": "Compteurs de l'ecran 'Statuts patientes'",
+                "operationId": "stats",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste (null = global)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PatientStatusStatsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/statuts/arretees": {
+            "get": {
+                "tags": [
+                    "9 - Statuts patientes"
+                ],
+                "summary": "Liste des patientes arretees",
+                "operationId": "arretees",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PatientStatusRowResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/statuts/abandons": {
+            "get": {
+                "tags": [
+                    "9 - Statuts patientes"
+                ],
+                "summary": "Liste des patientes en abandon (sans visite depuis N jours)",
+                "description": "Calcul dynamique : patientes ACTIVE sans visite depuis {thresholdDays} jours (defaut 90).",
+                "operationId": "abandons",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "thresholdDays",
+                        "in": "query",
+                        "description": "Seuil en jours sans visite",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 90
+                        },
+                        "example": 90
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PatientStatusRowResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/stats/national": {
+            "get": {
+                "tags": [
+                    "13 - Statistiques nationales (SUPER_ADMIN)"
+                ],
+                "summary": "Statistiques nationales",
+                "description": "Retourne en une seule reponse :\n  - 5 cards globales (Total Patientes / Actives / Abandons / PVVIH / Sages-femmes)\n  - tableau par poste avec compteurs et taux d'activite\n  - total national + taux moyen\n  - les 10 dernieres patientes enregistrees (toutes regions)\n",
+                "operationId": "load",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NationalStatsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports": {
+            "get": {
+                "tags": [
+                    "11 - Rapport mensuel PF"
+                ],
+                "summary": "Recherche le rapport d'une periode pour la sage-femme connectee",
+                "description": "Renvoie 404 si aucun rapport n'a encore ete genere pour cette periode.",
+                "operationId": "byPeriode",
+                "parameters": [
+                    {
+                        "name": "mois",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "maximum": 12,
+                            "minimum": 1,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "maximum": 2100,
+                            "minimum": 2000,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportMensuelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Aucun rapport pour cette periode"
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports/{id}": {
+            "get": {
+                "tags": [
+                    "11 - Rapport mensuel PF"
+                ],
+                "summary": "Recupere un rapport par son id",
+                "operationId": "byId",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportMensuelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Rapport introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/rapports/national": {
+            "get": {
+                "tags": [
+                    "14 - Rapport National PF (SUPER_ADMIN)"
+                ],
+                "summary": "Rapport National PF pour un mois",
+                "description": "Retourne :\n  - 5 cards globales (Nvelles PV avec delta % / Anc. PV / Actives / Inactives / PVVIH actives)\n  - Section 5.2 : tableau recapitulatif SNSR par district/poste\n  - Detail des Methodes de Longue Duree (LARC) : DIU + Implants\n  - Consommation des Intrants Hormonaux : Pilules + Injectables\n",
+                "operationId": "load_1",
+                "parameters": [
+                    {
+                        "name": "mois",
+                        "in": "query",
+                        "description": "Mois (1-12)",
+                        "required": true,
+                        "schema": {
+                            "maximum": 12,
+                            "minimum": 1,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "description": "Annee",
+                        "required": true,
+                        "schema": {
+                            "maximum": 2100,
+                            "minimum": 2000,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportNationalResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pvvih": {
+            "get": {
+                "tags": [
+                    "8 - PVVIH (Section 5.2.3)"
+                ],
+                "summary": "Liste des patientes PVVIH",
+                "description": "Vue tableau enrichi (stade OMS, ARV, methode PF, statut suivi, prochain RDV).",
+                "operationId": "list_1",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste (null = global)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PvvihRowResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pvvih/stats": {
+            "get": {
+                "tags": [
+                    "8 - PVVIH (Section 5.2.3)"
+                ],
+                "summary": "Compteurs Femmes PVVIH",
+                "description": "Renvoie les 3 cards : cumul annuel, actives sous traitement, nouvelles ce mois.",
+                "operationId": "stats_1",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste (null = global)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PvvihStatsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/postes-sante/stats": {
+            "get": {
+                "tags": [
+                    "5 - Postes de sante"
+                ],
+                "summary": "Compteurs des 4 cards de l'ecran 'Postes de sante'",
+                "operationId": "stats_2",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PostesStatsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/patientes/{id}": {
+            "get": {
+                "tags": [
+                    "6 - Patientes (SAGE_FEMME)"
+                ],
+                "summary": "Recupere le dossier complet d'une patiente (patiente + fiche + visites)",
+                "operationId": "getFolder",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PatientFolderResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Patiente introuvable"
+                    }
+                }
+            }
+        },
+        "/api/v1/journal": {
+            "get": {
+                "tags": [
+                    "10 - Journal du jour"
+                ],
+                "summary": "Journal du jour",
+                "description": "Retourne en une seule reponse :\n  - les 6 compteurs (cards) du jour : total, nouvelles, anciennes, actives, arretees, abandons\n  - la liste filtree des visites du jour\n\nLe filtre `filter` correspond aux pills sous le calendrier (Toutes / Nouvelle PV / Ancienne PV / Active / Arretee / Abandon / PVVIH).\n",
+                "operationId": "get_1",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "description": "Date du journal (defaut : aujourd'hui)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste (null = global)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "description": "Filtre des pills sous le calendrier",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "ALL",
+                            "enum": [
+                                "ALL",
+                                "NOUVELLE_PV",
+                                "ANCIENNE_PV",
+                                "ACTIVE",
+                                "ARRETEE",
+                                "ABANDON",
+                                "PVVIH"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DailyJournalResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dashboard": {
+            "get": {
+                "tags": [
+                    "12 - Dashboard sage-femme"
+                ],
+                "summary": "Dashboard sage-femme",
+                "description": "Retourne en une seule reponse l'integralite du dashboard :\n  - 5 cards KPI (Total / Actives / Arretees / Abandons / PVVIH) avec deltas mensuels\n  - histogramme d'activite (lundi -> dimanche de la semaine en cours)\n  - bloc 'Abandons a relancer' (top 3 RdV manques > 15j)\n  - tableau 'Actives recentes' (top 3 par derniere visite)\n\nLe filtre `posteSanteId` est optionnel - sans valeur, on prend le poste de la sage-femme connectee.\n",
+                "operationId": "load_2",
+                "parameters": [
+                    {
+                        "name": "posteSanteId",
+                        "in": "query",
+                        "description": "Filtre par poste (defaut : poste de l'utilisateur courant)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SageFemmeDashboardResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chef-poste/stats": {
+            "get": {
+                "tags": [
+                    "7 - Chef de poste : Statistiques poste (ADMIN_POSTE)"
+                ],
+                "summary": "Vue generale du poste - KPIs consolides et alertes",
+                "description": "Retourne en une seule reponse :\n  - 5 KPI cards : Total / Actives / Arretees / Abandons / PVVIH\n  - Actives recentes (top 5) avec methode contraceptive\n  - A surveiller : abandons > 90j + arretees recentes\n  - Repartition par categorie de methode\n  - Performance : taux de retention, methode la plus sollicitee, evolution mensuelle\n",
+                "operationId": "load_3",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StatsPosteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chef-poste/sages-femmes": {
+            "get": {
+                "tags": [
+                    "6 - Chef de poste : Sages-femmes (ADMIN_POSTE)"
+                ],
+                "summary": "Effectif du poste - liste des sages-femmes avec statistiques",
+                "description": "Retourne pour chaque sage-femme du poste :\n  - matricule (N°), nom complet, identifiant, nb patientes, dernière activité, statut\nPlus les indicateurs de bas de page : activité SF, dernier rapport, conformité.\n",
+                "operationId": "load_4",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EquipePosteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chef-poste/rapport": {
+            "get": {
+                "tags": [
+                    "9 - Chef de poste : Rapport mensuel PF (ADMIN_POSTE)"
+                ],
+                "summary": "Rapport mensuel PF agrege pour le poste",
+                "description": "Agrege les donnees de toutes les sages-femmes du poste pour un mois donne.\nRetourne :\n  - 5 KPI (Nvelles PV, Anc. PV, Actives, Inactives, PVVIH)\n  - Section 5.2.1 : nouvelles utilisatrices par methode x tranche d'age\n  - Section 5.2.2 : actives (renouvellements) par methode x tranche d'age\n  - Section 5.2.4 : inactives par methode x tranche d'age\nPar defaut, mois et annee = mois courant.\n",
+                "operationId": "load_5",
+                "parameters": [
+                    {
+                        "name": "mois",
+                        "in": "query",
+                        "description": "Mois (1-12, defaut = mois courant)",
+                        "required": false,
+                        "schema": {
+                            "maximum": 12,
+                            "minimum": 1,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "description": "Annee (defaut = annee courante)",
+                        "required": false,
+                        "schema": {
+                            "maximum": 2100,
+                            "minimum": 2000,
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RapportPosteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/chef-poste/patientes": {
+            "get": {
+                "tags": [
+                    "8 - Chef de poste : Fiches PF du poste (ADMIN_POSTE)"
+                ],
+                "summary": "Registre complet des patientes du poste",
+                "description": "Retourne toutes les patientes du poste avec :\n  - N° dossier, nom/prenom, age, sage-femme, methode, statut, PVVIH, prochain RDV\nFiltres optionnels : methode contraceptive (onglets Pilule, DIU, Injectables, Implant, PVVIH).\n",
+                "operationId": "load_6",
+                "parameters": [
+                    {
+                        "name": "methode",
+                        "in": "query",
+                        "description": "Filtre par methode (null = toutes)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PILULE_PP",
+                                "PILULE_POP",
+                                "INJECTABLE_IM",
+                                "INJECTABLE_SC_PRESTATAIRE",
+                                "INJECTABLE_SC_AUTO_INJECTION",
+                                "DIU_TCU_380A",
+                                "DIU_TCU_375_SLEEK",
+                                "DIU_POST_PARTUM",
+                                "IMPLANT_1_CAPSULE",
+                                "IMPLANT_2_CAPSULES",
+                                "PRESERVATIF_MASCULIN",
+                                "PRESERVATIF_FEMININ",
+                                "MAMA",
+                                "METHODE_JOUR_FIXE_COLLIER",
+                                "MAO",
+                                "AUTRES_METHODES_NATURELLES",
+                                "ANNEAU_VAGINAL_PROGESTATIFS",
+                                "LIGATURE_DES_TROMPES",
+                                "AUTRES"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RegistrePosteResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "1 - Authentication"
+                ],
+                "summary": "Profil de l'utilisateur courant",
+                "operationId": "me",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users": {
+            "get": {
+                "tags": [
+                    "5 - Utilisateurs (administration)"
+                ],
+                "summary": "Liste les utilisateurs (filtre optionnel par role)",
+                "operationId": "list_2",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "description": "Filtre par role : SUPER_ADMIN | ADMIN_POSTE | SAGE_FEMME",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "SUPER_ADMIN",
+                                "ADMIN_POSTE",
+                                "SAGE_FEMME"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/stats": {
+            "get": {
+                "tags": [
+                    "5 - Utilisateurs (administration)"
+                ],
+                "summary": "Compteurs des 4 cards de l'ecran 'Utilisateurs'",
+                "operationId": "stats_3",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserStatsResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}": {
+            "delete": {
+                "tags": [
+                    "5 - Utilisateurs (administration)"
+                ],
+                "summary": "Desactive un utilisateur (soft delete)",
+                "operationId": "deactivate_1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "VisiteDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "ficheConsultationId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "sageFemmeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "dateDernieresRegles": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tensionArterielle": {
+                        "type": "string"
+                    },
+                    "observations": {
+                        "type": "string"
+                    },
+                    "unitesFournies": {
+                        "type": "string"
+                    },
+                    "dateProchainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "statut": {
+                        "type": "string",
+                        "enum": [
+                            "BROUILLON",
+                            "VALIDEE"
+                        ]
+                    }
+                },
+                "description": "Visite de suivi - vue detaillee"
+            },
+            "MatriceCellResponse": {
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "cible": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "nombre": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Cellule de la matrice 5.2.1 (DE -> VERS)"
+            },
+            "MethodeLineResponse": {
+                "type": "object",
+                "properties": {
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "categorie": {
+                        "type": "string",
+                        "description": "Categorie d'affichage (Pilules, DIU, Implants...)"
+                    },
+                    "sousCategorie": {
+                        "type": "string",
+                        "description": "Sous-categorie (PP, TCu 380A, ...)"
+                    },
+                    "tranche10_14": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche15_19": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche20_24": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche25_49": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche50Plus": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Une ligne d'un tableau (5.2.1, 5.2.2, 5.2.4) - 1 methode + 5 tranches d'age + total"
+            },
+            "PvvihSectionResponse": {
+                "type": "object",
+                "properties": {
+                    "tranche10_14": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche15_19": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche20_24": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche25_49": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tranche50Plus": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Section 5.2.3 - Femmes seropositives sous contraception moderne (PTME)"
+            },
+            "RapportMensuelResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "mois": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "annee": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "periodeLabel": {
+                        "type": "string"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "sageFemmeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "signedBy": {
+                        "type": "string"
+                    },
+                    "statut": {
+                        "type": "string",
+                        "enum": [
+                            "BROUILLON",
+                            "VALIDE",
+                            "SOUMIS"
+                        ]
+                    },
+                    "dateGeneration": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/RapportStatsResponse"
+                    },
+                    "section521": {
+                        "type": "array",
+                        "description": "5.2.1 Nouvelles dans le programme",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLineResponse"
+                        }
+                    },
+                    "section521bis": {
+                        "type": "array",
+                        "description": "5.2.1bis Anciennes (retours) - vide tant que l'audit log n'est pas implemente",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLineResponse"
+                        }
+                    },
+                    "section522": {
+                        "type": "array",
+                        "description": "5.2.2 Actives selon la methode",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLineResponse"
+                        }
+                    },
+                    "section523": {
+                        "$ref": "#/components/schemas/PvvihSectionResponse"
+                    },
+                    "section524": {
+                        "type": "array",
+                        "description": "5.2.4 Inactives selon la methode",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLineResponse"
+                        }
+                    },
+                    "matriceChangements": {
+                        "type": "array",
+                        "description": "Matrice 5.2.1 - changements de methode (DE -> VERS), cellules non nulles uniquement",
+                        "items": {
+                            "$ref": "#/components/schemas/MatriceCellResponse"
+                        }
+                    }
+                },
+                "description": "Rapport mensuel PF complet (toutes les sections + matrice + cycle de vie)"
+            },
+            "RapportStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "nouvellesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "anciennesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "inactives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvihActives": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs des 5 cards en haut du rapport mensuel"
+            },
+            "CreatePosteSanteRequest": {
+                "required": [
+                    "nom"
+                ],
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "district": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "region": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableNom": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableTitre": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableEmail": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableTelephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "actif": {
+                        "type": "boolean",
+                        "description": "Configuration : Actif ou Inactif (defaut Actif)"
+                    }
+                },
+                "description": "Donnees de creation d'un poste de sante (avec responsable optionnel)"
+            },
+            "PosteSanteResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "identifiantExterne": {
+                        "type": "string",
+                        "description": "Identifiant externe humain (ex: PS-SEN-2024-082)"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "type": "string"
+                    },
+                    "district": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "actif": {
+                        "type": "boolean"
+                    },
+                    "responsableNom": {
+                        "type": "string"
+                    },
+                    "responsableTitre": {
+                        "type": "string"
+                    },
+                    "responsableEmail": {
+                        "type": "string"
+                    },
+                    "responsableTelephone": {
+                        "type": "string"
+                    }
+                },
+                "description": "Poste de sante - vue detaillee"
+            },
+            "ClinicalExamSection": {
+                "type": "object",
+                "properties": {
+                    "menarchesAge": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "dureeRegles": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "cycleMenstruel": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "dateDernieresRegles": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "enfantsVivants": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "enfantsDecedes": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "mortsNes": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "avortements": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "ageDernierEnfant": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "allaitementExclusif": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "antecedentsChirurgicaux": {
+                        "type": "string"
+                    },
+                    "hypertensionArterielle": {
+                        "type": "boolean"
+                    },
+                    "diabete": {
+                        "type": "boolean"
+                    },
+                    "drepanocytose": {
+                        "type": "boolean"
+                    },
+                    "maladiesCardioVasculaires": {
+                        "type": "string"
+                    },
+                    "ictereMoinsUnAn": {
+                        "type": "string"
+                    },
+                    "migraines": {
+                        "type": "string"
+                    },
+                    "autresMedicaux": {
+                        "type": "string"
+                    },
+                    "plaintesActuelles": {
+                        "type": "string"
+                    },
+                    "taille": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "muqueuses": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "varices": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "oedemes": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "exophtalmie": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "allergieCuivre": {
+                        "type": "boolean"
+                    },
+                    "thyroide": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "foie": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "ganglions": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "coeur": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "rate": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "poumons": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "peau": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "seins": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "vulve": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "perinee": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "vaginSpeculum": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "colSpeculum": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "colToucherVaginal": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "uterusToucherVaginal": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "annexesToucherVaginal": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "pertesToucherVaginal": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "examensComplementaires": {
+                        "type": "string"
+                    }
+                },
+                "description": "Etape 2 - Antecedents et examen clinique"
+            },
+            "CreatePatientFolderRequest": {
+                "required": [
+                    "clinicalExam",
+                    "dateConsultation",
+                    "identity"
+                ],
+                "type": "object",
+                "properties": {
+                    "numeroFiche": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Numero de fiche (genere automatiquement si null)",
+                        "example": "PF-042"
+                    },
+                    "dateConsultation": {
+                        "type": "string",
+                        "description": "Date de la consultation initiale",
+                        "format": "date",
+                        "example": "2024-05-24"
+                    },
+                    "identity": {
+                        "$ref": "#/components/schemas/IdentitySection"
+                    },
+                    "clinicalExam": {
+                        "$ref": "#/components/schemas/ClinicalExamSection"
+                    },
+                    "treatment": {
+                        "$ref": "#/components/schemas/TreatmentSection"
+                    }
+                },
+                "description": "Creation complete d'un dossier patient (Patiente + FicheConsultation + 1ere Visite) en une seule operation"
+            },
+            "IdentitySection": {
+                "required": [
+                    "nom",
+                    "prenom"
+                ],
+                "type": "object",
+                "properties": {
+                    "prenom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "nom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "age": {
+                        "minimum": 0,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "dateNaissance": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "profession": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "ethnie": {
+                        "type": "string",
+                        "enum": [
+                            "WOLOF",
+                            "SERERE",
+                            "TOUCOULEUR",
+                            "MANDINGUE",
+                            "DIOLA",
+                            "PEULH",
+                            "AUTRES"
+                        ]
+                    },
+                    "religion": {
+                        "type": "string",
+                        "enum": [
+                            "MUSULMANE",
+                            "CHRETIENNE",
+                            "AUTRES"
+                        ]
+                    },
+                    "situationMatrimoniale": {
+                        "type": "string",
+                        "enum": [
+                            "MARIEE",
+                            "CELIBATAIRE",
+                            "VEUVE",
+                            "DIVORCEE",
+                            "SEPAREE"
+                        ]
+                    },
+                    "niveauInstruction": {
+                        "type": "string",
+                        "enum": [
+                            "NON_SCOLARISEE",
+                            "PRIMAIRE",
+                            "SECONDAIRE",
+                            "SUPERIEUR"
+                        ]
+                    },
+                    "genreDeVie": {
+                        "uniqueItems": true,
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "TABAC",
+                                "ALCOOL",
+                                "AUTRES"
+                            ]
+                        }
+                    },
+                    "professionMari": {
+                        "type": "string",
+                        "enum": [
+                            "SANS",
+                            "CULTIVATEUR",
+                            "SALARIE",
+                            "TRAVAILLE_A_SON_COMPTE",
+                            "AUTRES"
+                        ]
+                    },
+                    "sourceInformation": {
+                        "type": "string",
+                        "enum": [
+                            "AMIE_PARENT",
+                            "MARI",
+                            "AGENT_DE_SANTE",
+                            "GROUPEMENT",
+                            "RADIO",
+                            "TELEVISION",
+                            "AFFICHE",
+                            "AUTRES"
+                        ]
+                    },
+                    "referee": {
+                        "type": "boolean"
+                    },
+                    "origineReference": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "pvvih": {
+                        "type": "boolean",
+                        "description": "Statut serologique VIH"
+                    },
+                    "stadeOms": {
+                        "type": "string",
+                        "description": "Stade OMS - obligatoire si pvvih=true",
+                        "enum": [
+                            "STADE_I",
+                            "STADE_II",
+                            "STADE_III",
+                            "STADE_IV"
+                        ]
+                    },
+                    "sousArv": {
+                        "type": "boolean",
+                        "description": "Sous traitement antiretroviral - obligatoire si pvvih=true"
+                    },
+                    "traitementArv": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Regime ARV (ex: TDF/3TC/DTG)",
+                        "example": "TDF/3TC/DTG"
+                    }
+                },
+                "description": "Etape 1 - Identite et statut social de la patiente"
+            },
+            "TreatmentSection": {
+                "required": [
+                    "dateDebut",
+                    "methodeChoisie"
+                ],
+                "type": "object",
+                "properties": {
+                    "methodeChoisie": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "dateDebut": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "dateProchainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "unitesFournies": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "observations": {
+                        "type": "string"
+                    }
+                },
+                "description": "Etape 3 - Methode contraceptive choisie + parametres de la 1ere visite"
+            },
+            "FicheConsultationResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numero": {
+                        "type": "string"
+                    },
+                    "dateConsultation": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "sageFemmeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "menarchesAge": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "enfantsVivants": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "enfantsDecedes": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "avortements": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "taille": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hypertensionArterielle": {
+                        "type": "boolean"
+                    },
+                    "diabete": {
+                        "type": "boolean"
+                    },
+                    "drepanocytose": {
+                        "type": "boolean"
+                    },
+                    "allergieCuivre": {
+                        "type": "boolean"
+                    },
+                    "plaintesActuelles": {
+                        "type": "string"
+                    },
+                    "examensComplementaires": {
+                        "type": "string"
+                    },
+                    "methodeChoisie": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    }
+                },
+                "description": "Fiche de consultation - vue resumee retournee avec le dossier"
+            },
+            "PatientFolderResponse": {
+                "type": "object",
+                "properties": {
+                    "patiente": {
+                        "$ref": "#/components/schemas/PatienteResponse"
+                    },
+                    "ficheConsultation": {
+                        "$ref": "#/components/schemas/FicheConsultationResponse"
+                    },
+                    "visites": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VisiteResponse"
+                        }
+                    }
+                },
+                "description": "Dossier patient complet : patiente + fiche de consultation + visites"
+            },
+            "PatienteResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "age": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "dateNaissance": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "telephone": {
+                        "type": "string"
+                    },
+                    "profession": {
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "type": "string"
+                    },
+                    "ethnie": {
+                        "type": "string",
+                        "enum": [
+                            "WOLOF",
+                            "SERERE",
+                            "TOUCOULEUR",
+                            "MANDINGUE",
+                            "DIOLA",
+                            "PEULH",
+                            "AUTRES"
+                        ]
+                    },
+                    "religion": {
+                        "type": "string",
+                        "enum": [
+                            "MUSULMANE",
+                            "CHRETIENNE",
+                            "AUTRES"
+                        ]
+                    },
+                    "situationMatrimoniale": {
+                        "type": "string",
+                        "enum": [
+                            "MARIEE",
+                            "CELIBATAIRE",
+                            "VEUVE",
+                            "DIVORCEE",
+                            "SEPAREE"
+                        ]
+                    },
+                    "niveauInstruction": {
+                        "type": "string",
+                        "enum": [
+                            "NON_SCOLARISEE",
+                            "PRIMAIRE",
+                            "SECONDAIRE",
+                            "SUPERIEUR"
+                        ]
+                    },
+                    "genreDeVie": {
+                        "uniqueItems": true,
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "TABAC",
+                                "ALCOOL",
+                                "AUTRES"
+                            ]
+                        }
+                    },
+                    "professionMari": {
+                        "type": "string",
+                        "enum": [
+                            "SANS",
+                            "CULTIVATEUR",
+                            "SALARIE",
+                            "TRAVAILLE_A_SON_COMPTE",
+                            "AUTRES"
+                        ]
+                    },
+                    "sourceInformation": {
+                        "type": "string",
+                        "enum": [
+                            "AMIE_PARENT",
+                            "MARI",
+                            "AGENT_DE_SANTE",
+                            "GROUPEMENT",
+                            "RADIO",
+                            "TELEVISION",
+                            "AFFICHE",
+                            "AUTRES"
+                        ]
+                    },
+                    "referee": {
+                        "type": "boolean"
+                    },
+                    "origineReference": {
+                        "type": "string"
+                    },
+                    "pvvih": {
+                        "type": "boolean"
+                    },
+                    "stadeOms": {
+                        "type": "string",
+                        "enum": [
+                            "STADE_I",
+                            "STADE_II",
+                            "STADE_III",
+                            "STADE_IV"
+                        ]
+                    },
+                    "sousArv": {
+                        "type": "boolean"
+                    },
+                    "traitementArv": {
+                        "type": "string"
+                    },
+                    "statutPatiente": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "motifArret": {
+                        "type": "string"
+                    },
+                    "dateArret": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "dateInscription": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "sageFemmeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "description": "Patiente - vue complete"
+            },
+            "VisiteResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tensionArterielle": {
+                        "type": "string"
+                    },
+                    "observations": {
+                        "type": "string"
+                    },
+                    "unitesFournies": {
+                        "type": "string"
+                    },
+                    "dateProchainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "sageFemmeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "description": "Visite de suivi"
+            },
+            "CreateVisiteRequest": {
+                "required": [
+                    "date"
+                ],
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-10-24"
+                    },
+                    "dateDernieresRegles": {
+                        "type": "string",
+                        "description": "Date des dernieres regles",
+                        "format": "date",
+                        "example": "2024-10-12"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 65.4
+                    },
+                    "tensionArterielle": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "pattern": "^\\d{1,2}/\\d{1,2}$",
+                        "type": "string",
+                        "description": "Tension arterielle au format systolique/diastolique",
+                        "example": "12/8"
+                    },
+                    "observations": {
+                        "type": "string",
+                        "description": "Symptomes, tolerance, discussions, conduite a tenir"
+                    },
+                    "unitesFournies": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Quantite de produit remis (ex: 3 plaquettes)"
+                    },
+                    "dateProchainRdv": {
+                        "type": "string",
+                        "description": "Date du prochain rendez-vous",
+                        "format": "date"
+                    },
+                    "statut": {
+                        "type": "string",
+                        "description": "Statut de la visite",
+                        "default": "VALIDEE",
+                        "enum": [
+                            "BROUILLON",
+                            "VALIDEE"
+                        ]
+                    },
+                    "methodChange": {
+                        "$ref": "#/components/schemas/MethodChange"
+                    }
+                },
+                "description": "Creation d'une visite de suivi"
+            },
+            "MethodChange": {
+                "required": [
+                    "nouvelleMethode"
+                ],
+                "type": "object",
+                "properties": {
+                    "nouvelleMethode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "motif": {
+                        "maxLength": 500,
+                        "minLength": 0,
+                        "type": "string"
+                    }
+                },
+                "description": "Sous-objet de changement de methode contraceptive"
+            },
+            "ReprisePatienteRequest": {
+                "type": "object",
+                "properties": {
+                    "observations": {
+                        "maxLength": 500,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Observations libres a propos de la reprise"
+                    }
+                },
+                "description": "Donnees de reprise d'une patiente arretee/abandonnee"
+            },
+            "ArretPatienteRequest": {
+                "type": "object",
+                "properties": {
+                    "motif": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Motif de l'arret (effets secondaires, souhait grossesse...)"
+                    },
+                    "dateArret": {
+                        "type": "string",
+                        "description": "Date de l'arret - defaut aujourd'hui si null",
+                        "format": "date"
+                    }
+                },
+                "description": "Donnees d'arret d'une patiente"
+            },
+            "LoginRequest": {
+                "required": [
+                    "email",
+                    "motDePasse"
+                ],
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "example": "superadmin@planifem.local"
+                    },
+                    "motDePasse": {
+                        "type": "string",
+                        "example": "ChangeMe!2026"
+                    }
+                },
+                "description": "Identifiants de connexion"
+            },
+            "LoginResponse": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "JWT a passer dans 'Authorization: Bearer <token>'"
+                    },
+                    "tokenType": {
+                        "type": "string",
+                        "description": "Type du token"
+                    },
+                    "expiresIn": {
+                        "type": "integer",
+                        "description": "Duree de validite en secondes",
+                        "format": "int64"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/UserResponse"
+                    }
+                },
+                "description": "Resultat d'une authentification reussie"
+            },
+            "UserResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "Identifiant court (alternative a l'email pour le login)"
+                    },
+                    "telephone": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "SUPER_ADMIN",
+                            "ADMIN_POSTE",
+                            "SAGE_FEMME"
+                        ]
+                    },
+                    "actif": {
+                        "type": "boolean"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "description": "Id du poste de sante de rattachement (null pour SUPER_ADMIN)",
+                        "format": "uuid"
+                    },
+                    "posteSanteNom": {
+                        "type": "string",
+                        "description": "Nom du poste pour affichage tableau"
+                    },
+                    "matricule": {
+                        "type": "string",
+                        "description": "Matricule (uniquement pour SAGE_FEMME)"
+                    }
+                },
+                "description": "Informations publiques d'un utilisateur"
+            },
+            "ChangePasswordRequest": {
+                "required": [
+                    "currentPassword",
+                    "newPassword"
+                ],
+                "type": "object",
+                "properties": {
+                    "currentPassword": {
+                        "type": "string"
+                    },
+                    "newPassword": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "type": "string"
+                    }
+                },
+                "description": "Changement de mot de passe de l'utilisateur courant"
+            },
+            "CreateSuperAdminRequest": {
+                "required": [
+                    "email",
+                    "motDePasse",
+                    "nom",
+                    "prenom"
+                ],
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "email": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "username": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Identifiant court (ex: admin)"
+                    },
+                    "motDePasse": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "niveauAcces": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string"
+                    }
+                },
+                "description": "Donnees de creation d'un super administrateur (national)"
+            },
+            "CreateSageFemmeRequest": {
+                "required": [
+                    "email",
+                    "motDePasse",
+                    "nom",
+                    "prenom"
+                ],
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "email": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "username": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Identifiant court de connexion (ex: sf1)"
+                    },
+                    "motDePasse": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "matricule": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "specialite": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "description": "Poste d'affectation - obligatoire pour SUPER_ADMIN, ignore pour ADMIN_POSTE (utilise son propre poste)",
+                        "format": "uuid"
+                    }
+                },
+                "description": "Donnees de creation d'une sage-femme"
+            },
+            "CreateAdminPosteRequest": {
+                "required": [
+                    "email",
+                    "motDePasse",
+                    "nom",
+                    "posteSanteId",
+                    "prenom"
+                ],
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "email": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "username": {
+                        "maxLength": 50,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "Identifiant court de connexion (ex: chef_cs1)"
+                    },
+                    "motDePasse": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "posteSanteId": {
+                        "type": "string",
+                        "description": "Id du poste de sante a administrer",
+                        "format": "uuid"
+                    }
+                },
+                "description": "Donnees de creation d'un administrateur de poste de sante"
+            },
+            "UpdatePosteSanteRequest": {
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "maxLength": 255,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "district": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "region": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableNom": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableTitre": {
+                        "maxLength": 100,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableEmail": {
+                        "maxLength": 150,
+                        "minLength": 0,
+                        "type": "string"
+                    },
+                    "responsableTelephone": {
+                        "maxLength": 30,
+                        "minLength": 0,
+                        "type": "string"
+                    }
+                },
+                "description": "Modification d'un poste - tous les champs sont optionnels (null = pas de changement)"
+            },
+            "UpdateMonPosteRequest": {
+                "type": "object",
+                "properties": {
+                    "nom": {
+                        "type": "string",
+                        "description": "Nom du poste"
+                    },
+                    "district": {
+                        "type": "string",
+                        "description": "District sanitaire"
+                    },
+                    "region": {
+                        "type": "string",
+                        "description": "Region"
+                    },
+                    "responsableNom": {
+                        "type": "string",
+                        "description": "Nom du responsable (champ Responsable)"
+                    },
+                    "telephone": {
+                        "type": "string",
+                        "description": "Telephone du poste"
+                    },
+                    "responsableEmail": {
+                        "type": "string",
+                        "description": "Email de contact du poste"
+                    },
+                    "responsableTelephone": {
+                        "type": "string",
+                        "description": "Telephone direct du responsable"
+                    },
+                    "responsableTitre": {
+                        "type": "string",
+                        "description": "Titre du responsable (ex: Medecin Chef)"
+                    }
+                },
+                "description": "Donnees de modification du poste - bouton 'Enregistrer les modifications'"
+            },
+            "MonPosteResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "identifiantExterne": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "district": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "type": "string"
+                    },
+                    "responsableNom": {
+                        "type": "string"
+                    },
+                    "responsableTitre": {
+                        "type": "string"
+                    },
+                    "responsableEmail": {
+                        "type": "string"
+                    },
+                    "responsableTelephone": {
+                        "type": "string"
+                    },
+                    "actif": {
+                        "type": "boolean"
+                    }
+                },
+                "description": "Informations du poste de sante - ecran Mon poste de sante"
+            },
+            "PatientStatusStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "arretees": {
+                        "type": "integer",
+                        "description": "Total patientes arretees (toutes periodes)",
+                        "format": "int64"
+                    },
+                    "arreteesCeMois": {
+                        "type": "integer",
+                        "description": "Patientes arretees ce mois",
+                        "format": "int64"
+                    },
+                    "abandons": {
+                        "type": "integer",
+                        "description": "Patientes ACTIVE sans visite depuis le seuil (defaut 90 jours)",
+                        "format": "int64"
+                    },
+                    "anciennesReprises": {
+                        "type": "integer",
+                        "description": "Anciennes patientes reprises (placeholder, 0 pour l'instant)",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs de l'ecran 'Statuts patientes'"
+            },
+            "PatientStatusRowResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "adresse": {
+                        "type": "string"
+                    },
+                    "statutPatiente": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "methodePf": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "dateArret": {
+                        "type": "string",
+                        "description": "Date d'arret pour les ARRETEES",
+                        "format": "date"
+                    },
+                    "motifArret": {
+                        "type": "string"
+                    },
+                    "dernierRdv": {
+                        "type": "string",
+                        "description": "Date du dernier RDV planifie (ou null)",
+                        "format": "date"
+                    }
+                },
+                "description": "Ligne de tableau des arretees / abandons"
+            },
+            "NationalGlobalStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "totalPatientes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "abandons": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvih": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sagesFemmes": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs globaux (5 cards) de l'ecran 'Statistiques nationales'"
+            },
+            "NationalStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "global": {
+                        "$ref": "#/components/schemas/NationalGlobalStatsResponse"
+                    },
+                    "postesRows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PosteStatsRowResponse"
+                        }
+                    },
+                    "totalNational": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tauxMoyenPercent": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "recentPatients": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecentPatientResponse"
+                        }
+                    }
+                },
+                "description": "Reponse complete de l'ecran 'Statistiques nationales'"
+            },
+            "PosteStatsRowResponse": {
+                "type": "object",
+                "properties": {
+                    "posteSanteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "district": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "abandons": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvih": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sagesFemmes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tauxActivitePercent": {
+                        "type": "integer",
+                        "description": "Taux d'activite : actives / total (pourcentage entier)",
+                        "format": "int32"
+                    }
+                },
+                "description": "Ligne du tableau 'Vue par poste de sante'"
+            },
+            "RecentPatientResponse": {
+                "type": "object",
+                "properties": {
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "dateInscription": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "description": "Ligne du tableau 'Dernieres patientes enregistrees (toutes regions)'"
+            },
+            "MethodeQuantiteResponse": {
+                "type": "object",
+                "properties": {
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "quantite": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Methode + quantite (utilise pour LARC et Consommation Hormonaux)"
+            },
+            "RapportNationalPosteRowResponse": {
+                "type": "object",
+                "properties": {
+                    "posteSanteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "nouvellesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "anciennesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "inactives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvih": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Ligne du tableau 'Section 5.2 : Recapitulatif SNSR par District'"
+            },
+            "RapportNationalResponse": {
+                "type": "object",
+                "properties": {
+                    "mois": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "annee": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "periodeLabel": {
+                        "type": "string"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/RapportNationalStatsResponse"
+                    },
+                    "postesRows": {
+                        "type": "array",
+                        "description": "Section 5.2 - Recapitulatif SNSR par District / Poste",
+                        "items": {
+                            "$ref": "#/components/schemas/RapportNationalPosteRowResponse"
+                        }
+                    },
+                    "totalNational": {
+                        "$ref": "#/components/schemas/RapportNationalTotalResponse"
+                    },
+                    "larcDetail": {
+                        "type": "array",
+                        "description": "Detail des Methodes de Longue Duree (LARC)",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeQuantiteResponse"
+                        }
+                    },
+                    "hormonauxConsommes": {
+                        "type": "array",
+                        "description": "Consommation des Intrants - Hormonaux",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeQuantiteResponse"
+                        }
+                    }
+                },
+                "description": "Rapport National PF complet pour un mois donne"
+            },
+            "RapportNationalStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "nouvellesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "deltaNouvellesPercent": {
+                        "type": "number",
+                        "description": "Variation % vs mois precedent (peut etre null)",
+                        "format": "double"
+                    },
+                    "anciennesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "inactives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvihActives": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs des 5 cards en haut du Rapport National PF"
+            },
+            "RapportNationalTotalResponse": {
+                "type": "object",
+                "properties": {
+                    "nouvellesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "anciennesPv": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "inactives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pvvih": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Ligne 'TOTAL NATIONAL' du tableau recapitulatif"
+            },
+            "PvvihRowResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "age": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "statutPatiente": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "stadeOms": {
+                        "type": "string",
+                        "enum": [
+                            "STADE_I",
+                            "STADE_II",
+                            "STADE_III",
+                            "STADE_IV"
+                        ]
+                    },
+                    "traitementArv": {
+                        "type": "string"
+                    },
+                    "methodePf": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "statutSuiviPf": {
+                        "type": "string",
+                        "enum": [
+                            "A_JOUR",
+                            "RENOUVELLEMENT",
+                            "URGENT"
+                        ]
+                    },
+                    "prochainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "description": "Ligne enrichie du tableau 'Liste des Patientes PVVIH'"
+            },
+            "PvvihStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "totalAnnuel": {
+                        "type": "integer",
+                        "description": "Total cumule des femmes PVVIH (cumul annuel)",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "description": "PVVIH actuellement sous traitement & suivi",
+                        "format": "int64"
+                    },
+                    "nouvellesCeMois": {
+                        "type": "integer",
+                        "description": "Nouvelles PVVIH enregistrees ce mois-ci",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs PVVIH affiches sur le dashboard 5.2.3"
+            },
+            "PosteSanteRowResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "identifiantExterne": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "district": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "nombrePatientes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "nombreSagesFemmes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "actif": {
+                        "type": "boolean"
+                    }
+                },
+                "description": "Ligne enrichie du tableau 'Postes de sante enregistres'"
+            },
+            "PostesStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "postesActifs": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPatientes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalSagesFemmes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "districtsCouverts": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs des 4 cards de l'ecran 'Postes de sante'"
+            },
+            "PatienteSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "age": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "statutPatiente": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "pvvih": {
+                        "type": "boolean"
+                    },
+                    "dateInscription": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "description": "Patiente - vue resumee pour les listings"
+            },
+            "DailyJournalEntryResponse": {
+                "type": "object",
+                "properties": {
+                    "visiteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "age": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pvvih": {
+                        "type": "boolean"
+                    },
+                    "statutPatiente": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "typeVisite": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE_PV",
+                            "ANCIENNE_PV",
+                            "SUIVI"
+                        ]
+                    },
+                    "methodePf": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "tensionArterielle": {
+                        "type": "string",
+                        "description": "Tension arterielle",
+                        "example": "120/80"
+                    },
+                    "poids": {
+                        "type": "number",
+                        "description": "Poids en kg",
+                        "format": "double",
+                        "example": 64
+                    },
+                    "prochainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "description": "Ligne du tableau 'Liste des patientes consultees'"
+            },
+            "DailyJournalResponse": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/DailyJournalStatsResponse"
+                    },
+                    "entries": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailyJournalEntryResponse"
+                        }
+                    }
+                },
+                "description": "Reponse complete du Journal du jour : stats + liste des patientes consultees filtree"
+            },
+            "DailyJournalStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "nouvellesPv": {
+                        "type": "integer",
+                        "description": "Nouvelles PV inscrites ce jour",
+                        "format": "int64"
+                    },
+                    "anciennesPv": {
+                        "type": "integer",
+                        "description": "Anciennes PV (inscrites avant) consultees ce jour",
+                        "format": "int64"
+                    },
+                    "actives": {
+                        "type": "integer",
+                        "description": "Patientes consultees ce jour avec statut ACTIVE",
+                        "format": "int64"
+                    },
+                    "arretees": {
+                        "type": "integer",
+                        "description": "Patientes arretees ce jour (dateArret = jour)",
+                        "format": "int64"
+                    },
+                    "abandons": {
+                        "type": "integer",
+                        "description": "Patientes en abandon a la date donnee (sans visite > 90j)",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs des 6 cards du Journal du jour"
+            },
+            "AbandonRelanceResponse": {
+                "type": "object",
+                "properties": {
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "telephone": {
+                        "type": "string",
+                        "description": "Numero de telephone pour le bouton 'Appeler'"
+                    },
+                    "dernierContact": {
+                        "type": "string",
+                        "description": "Date du dernier contact (visite ou inscription)",
+                        "format": "date"
+                    },
+                    "joursSansContact": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Une carte 'Abandon a relancer' (priorite RdV manques > 15j)"
+            },
+            "AbandonsRelanceResponse": {
+                "type": "object",
+                "properties": {
+                    "thresholdDays": {
+                        "type": "integer",
+                        "description": "Seuil utilise (en jours) pour qualifier 'a relancer'",
+                        "format": "int32"
+                    },
+                    "items": {
+                        "type": "array",
+                        "description": "Cartes affichees (top N par anciennete)",
+                        "items": {
+                            "$ref": "#/components/schemas/AbandonRelanceResponse"
+                        }
+                    },
+                    "totalEnRetard": {
+                        "type": "integer",
+                        "description": "Total de patientes en retard - alimente le lien 'Voir les X dossiers en retard'",
+                        "format": "int64"
+                    }
+                },
+                "description": "Bloc 'Abandons a relancer' du dashboard"
+            },
+            "ActiveRecenteResponse": {
+                "type": "object",
+                "properties": {
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "derniereVisite": {
+                        "type": "string",
+                        "description": "Date de la derniere visite (null si aucune)",
+                        "format": "date"
+                    },
+                    "statutClinique": {
+                        "type": "string",
+                        "description": "Statut clinique calcule pour le badge",
+                        "enum": [
+                            "STABLE",
+                            "SUIVI_HEBDO",
+                            "SOUS_SURVEILLANCE"
+                        ]
+                    }
+                },
+                "description": "Ligne du tableau 'Actives recentes'"
+            },
+            "ActivityDayResponse": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "label": {
+                        "type": "string",
+                        "example": "Lun"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Une barre de l'histogramme 'Activite des 7 derniers jours'"
+            },
+            "ActivityResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "days": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ActivityDayResponse"
+                        }
+                    }
+                },
+                "description": "Activite des 7 derniers jours (lundi -> dimanche)"
+            },
+            "SageFemmeDashboardResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "$ref": "#/components/schemas/StatCardResponse"
+                    },
+                    "actives": {
+                        "$ref": "#/components/schemas/StatCardResponse"
+                    },
+                    "arretees": {
+                        "$ref": "#/components/schemas/StatCardResponse"
+                    },
+                    "abandons": {
+                        "$ref": "#/components/schemas/StatCardResponse"
+                    },
+                    "pvvih": {
+                        "$ref": "#/components/schemas/StatCardResponse"
+                    },
+                    "activity": {
+                        "$ref": "#/components/schemas/ActivityResponse"
+                    },
+                    "abandonsRelance": {
+                        "$ref": "#/components/schemas/AbandonsRelanceResponse"
+                    },
+                    "activesRecentes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ActiveRecenteResponse"
+                        }
+                    }
+                },
+                "description": "Reponse complete du Dashboard sage-femme : 5 cards + activite + abandons + actives recentes"
+            },
+            "StatCardResponse": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "deltaPercent": {
+                        "type": "number",
+                        "description": "Variation en pourcentage (peut etre null si non calculable)",
+                        "format": "double"
+                    },
+                    "deltaLabel": {
+                        "type": "string",
+                        "description": "Libelle pret a afficher (ex: '+12% ce mois', 'Alerte hausse')"
+                    },
+                    "trend": {
+                        "type": "string",
+                        "description": "Tendance pour le styling : UP, DOWN, STABLE, ALERT, PRIORITY",
+                        "enum": [
+                            "UP",
+                            "DOWN",
+                            "STABLE",
+                            "ALERT",
+                            "PRIORITY"
+                        ]
+                    }
+                },
+                "description": "Une card KPI du dashboard"
+            },
+            "ASurveillerResponse": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "description": "ABANDON ou ARRETEE"
+                    },
+                    "patienteId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Message contextuel (dernier rdv, date arret...)"
+                    }
+                },
+                "description": "Patiente a surveiller (abandon ou arretee) - section 'A surveiller'"
+            },
+            "ActiveRecentePosteResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "methodeLabel": {
+                        "type": "string",
+                        "description": "Libelle lisible de la methode"
+                    },
+                    "statut": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    }
+                },
+                "description": "Patiente active recente avec methode - section 'Actives recentes'"
+            },
+            "KpiCardResponse": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "description": "Carte KPI"
+            },
+            "MethodeCountResponse": {
+                "type": "object",
+                "properties": {
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "categorie": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Repartition par methode - section 'Repartition par methode'"
+            },
+            "StatsPosteResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "$ref": "#/components/schemas/KpiCardResponse"
+                    },
+                    "actives": {
+                        "$ref": "#/components/schemas/KpiCardResponse"
+                    },
+                    "arretees": {
+                        "$ref": "#/components/schemas/KpiCardResponse"
+                    },
+                    "abandons": {
+                        "$ref": "#/components/schemas/KpiCardResponse"
+                    },
+                    "pvvih": {
+                        "$ref": "#/components/schemas/KpiCardResponse"
+                    },
+                    "activesRecentes": {
+                        "type": "array",
+                        "description": "Top actives recentes avec methode",
+                        "items": {
+                            "$ref": "#/components/schemas/ActiveRecentePosteResponse"
+                        }
+                    },
+                    "aSurveiller": {
+                        "type": "array",
+                        "description": "Patientes a surveiller (abandons + arretees)",
+                        "items": {
+                            "$ref": "#/components/schemas/ASurveillerResponse"
+                        }
+                    },
+                    "repartitionParMethode": {
+                        "type": "array",
+                        "description": "Repartition par categorie de methode",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeCountResponse"
+                        }
+                    },
+                    "tauxRetentionPercent": {
+                        "type": "integer",
+                        "description": "Taux de retention en % (actives / total)",
+                        "format": "int64"
+                    },
+                    "methodePlusSollicitee": {
+                        "type": "string",
+                        "description": "Categorie de methode la plus sollicitee"
+                    },
+                    "evolutionMensuellePercent": {
+                        "type": "number",
+                        "description": "Evolution mensuelle des nouvelles PV en %",
+                        "format": "double"
+                    }
+                },
+                "description": "Vue generale - Statistiques consolidees du poste (ecran Statistiques poste)"
+            },
+            "EquipePosteResponse": {
+                "type": "object",
+                "properties": {
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "totalSagesFemmes": {
+                        "type": "integer",
+                        "description": "Nombre total de sages-femmes dans le poste",
+                        "format": "int32"
+                    },
+                    "sagesFemmes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SageFemmeEquipeResponse"
+                        }
+                    },
+                    "moyennePatientesParSf": {
+                        "type": "number",
+                        "description": "Moyenne de patientes par sage-femme ce mois",
+                        "format": "double"
+                    },
+                    "dernierRapportDate": {
+                        "type": "string",
+                        "description": "Date de génération du dernier rapport",
+                        "format": "date"
+                    },
+                    "conformite": {
+                        "type": "boolean",
+                        "description": "Vrai si toutes les SF ont au moins une patiente en suivi actif"
+                    }
+                },
+                "description": "Effectif complet du poste - écran Sages-femmes"
+            },
+            "SageFemmeEquipeResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "matricule": {
+                        "type": "string",
+                        "description": "Numero de matricule ex: SF-001"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "Identifiant de connexion (login)"
+                    },
+                    "actif": {
+                        "type": "boolean"
+                    },
+                    "nbPatientes": {
+                        "type": "integer",
+                        "description": "Nombre total de patientes suivies",
+                        "format": "int32"
+                    },
+                    "derniereActivite": {
+                        "type": "string",
+                        "description": "Date de la dernière visite enregistrée",
+                        "format": "date"
+                    }
+                },
+                "description": "Sage-femme avec statistiques - ligne de l'écran Effectif"
+            },
+            "KpiRapportResponse": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "evolutionPercent": {
+                        "type": "number",
+                        "description": "Evolution vs mois precedent en %, null si non calculable",
+                        "format": "double"
+                    }
+                },
+                "description": "KPI du rapport mensuel du poste"
+            },
+            "MethodeLinePosteResponse": {
+                "type": "object",
+                "properties": {
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "methodeLabel": {
+                        "type": "string"
+                    },
+                    "tranches": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Ligne tableau rapport (methode x tranches d'age)"
+            },
+            "RapportPosteResponse": {
+                "type": "object",
+                "properties": {
+                    "mois": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "annee": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "periodeLabel": {
+                        "type": "string"
+                    },
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "district": {
+                        "type": "string"
+                    },
+                    "nouvellesPv": {
+                        "$ref": "#/components/schemas/KpiRapportResponse"
+                    },
+                    "anciennesPv": {
+                        "$ref": "#/components/schemas/KpiRapportResponse"
+                    },
+                    "actives": {
+                        "$ref": "#/components/schemas/KpiRapportResponse"
+                    },
+                    "inactives": {
+                        "$ref": "#/components/schemas/KpiRapportResponse"
+                    },
+                    "pvvih": {
+                        "$ref": "#/components/schemas/KpiRapportResponse"
+                    },
+                    "section521": {
+                        "type": "array",
+                        "description": "5.2.1 - Nouvelles utilisatrices par methode et tranche d'age",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLinePosteResponse"
+                        }
+                    },
+                    "section522": {
+                        "type": "array",
+                        "description": "5.2.2 - Actives (renouvellements) par methode et tranche d'age",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLinePosteResponse"
+                        }
+                    },
+                    "section524": {
+                        "type": "array",
+                        "description": "5.2.4 - Inactives par methode et tranche d'age",
+                        "items": {
+                            "$ref": "#/components/schemas/MethodeLinePosteResponse"
+                        }
+                    }
+                },
+                "description": "Rapport mensuel PF agrege pour le poste - ecran Rapport mensuel"
+            },
+            "PatienteRegistreResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "numeroDossier": {
+                        "type": "string",
+                        "description": "ex: PF-042"
+                    },
+                    "prenom": {
+                        "type": "string"
+                    },
+                    "nom": {
+                        "type": "string"
+                    },
+                    "age": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sageFemmeNomComplet": {
+                        "type": "string",
+                        "description": "ex: Mme. Sow"
+                    },
+                    "methode": {
+                        "type": "string",
+                        "enum": [
+                            "PILULE_PP",
+                            "PILULE_POP",
+                            "INJECTABLE_IM",
+                            "INJECTABLE_SC_PRESTATAIRE",
+                            "INJECTABLE_SC_AUTO_INJECTION",
+                            "DIU_TCU_380A",
+                            "DIU_TCU_375_SLEEK",
+                            "DIU_POST_PARTUM",
+                            "IMPLANT_1_CAPSULE",
+                            "IMPLANT_2_CAPSULES",
+                            "PRESERVATIF_MASCULIN",
+                            "PRESERVATIF_FEMININ",
+                            "MAMA",
+                            "METHODE_JOUR_FIXE_COLLIER",
+                            "MAO",
+                            "AUTRES_METHODES_NATURELLES",
+                            "ANNEAU_VAGINAL_PROGESTATIFS",
+                            "LIGATURE_DES_TROMPES",
+                            "AUTRES"
+                        ]
+                    },
+                    "methodeLabel": {
+                        "type": "string",
+                        "description": "Libelle court de la methode"
+                    },
+                    "statut": {
+                        "type": "string",
+                        "enum": [
+                            "NOUVELLE",
+                            "ACTIVE",
+                            "ARRETEE",
+                            "ABANDON",
+                            "INACTIVE"
+                        ]
+                    },
+                    "pvvih": {
+                        "type": "boolean"
+                    },
+                    "prochainRdv": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "description": "Ligne du registre complet - ecran Fiches PF du poste"
+            },
+            "RegistrePosteResponse": {
+                "type": "object",
+                "properties": {
+                    "posteNom": {
+                        "type": "string"
+                    },
+                    "totalPatientesActives": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "patientes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PatienteRegistreResponse"
+                        }
+                    },
+                    "avecRetardSuivi": {
+                        "type": "integer",
+                        "description": "Patientes avec suivi en retard (prochain RDV depasse)",
+                        "format": "int64"
+                    },
+                    "actionRequise": {
+                        "type": "integer",
+                        "description": "Nombre d'actions requises",
+                        "format": "int64"
+                    }
+                },
+                "description": "Registre complet du poste - ecran Fiches PF du poste"
+            },
+            "UserStatsResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "superAdmins": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "chefsDePoste": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sagesFemmes": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "description": "Compteurs des 4 cards de l'ecran 'Utilisateurs'"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "JWT obtenu via /api/v1/auth/login",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package com.example.pfsagefemme.shared.infrastructure.web.error;
 
+import com.example.pfsagefemme.modules.user.domain.exception.InvalidCredentialsException;
 import com.example.pfsagefemme.shared.domain.exception.BusinessRuleException;
 import com.example.pfsagefemme.shared.domain.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,11 @@ import java.util.List;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), req);
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex, HttpServletRequest req) {

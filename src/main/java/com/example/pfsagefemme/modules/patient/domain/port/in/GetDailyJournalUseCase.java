@@ -3,6 +3,7 @@ package com.example.pfsagefemme.modules.patient.domain.port.in;
 import com.example.pfsagefemme.modules.consultation.domain.model.entity.FicheConsultation;
 import com.example.pfsagefemme.modules.consultation.domain.model.entity.Visite;
 import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
+import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
 import com.example.pfsagefemme.shared.domain.enums.TypeVisiteEnum;
 
 import java.time.LocalDate;
@@ -30,7 +31,8 @@ public interface GetDailyJournalUseCase {
             Patiente patiente,
             FicheConsultation fiche,
             TypeVisiteEnum typeVisite,
-            long visiteCountIncludingThis
+            long visiteCountIncludingThis,
+            MethodeContraceptiveEnum ancienneMethode
     ) {}
 
     record DailyJournal(

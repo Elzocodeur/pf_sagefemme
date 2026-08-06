@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,6 +53,7 @@ public class RapportMensuelController {
             @ApiResponse(responseCode = "404", description = "Sage-femme ou poste introuvable", content = @io.swagger.v3.oas.annotations.media.Content),
             @ApiResponse(responseCode = "422", description = "Rapport deja valide / soumis", content = @io.swagger.v3.oas.annotations.media.Content)
     })
+    @Transactional
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/generate")
     public ResponseEntity<RapportMensuelResponse> generate(
@@ -73,6 +75,7 @@ public class RapportMensuelController {
             @ApiResponse(responseCode = "200", description = "OK"),
             @ApiResponse(responseCode = "404", description = "Rapport introuvable", content = @io.swagger.v3.oas.annotations.media.Content)
     })
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/{id}")
     public RapportMensuelResponse byId(@PathVariable UUID id) {
@@ -87,6 +90,7 @@ public class RapportMensuelController {
             @ApiResponse(responseCode = "200", description = "OK"),
             @ApiResponse(responseCode = "404", description = "Aucun rapport pour cette periode", content = @io.swagger.v3.oas.annotations.media.Content)
     })
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @GetMapping
     public ResponseEntity<RapportMensuelResponse> byPeriode(
@@ -100,6 +104,7 @@ public class RapportMensuelController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @Transactional
     @Operation(summary = "Valide un rapport (BROUILLON -> VALIDE)")
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/{id}/validate")
@@ -108,6 +113,7 @@ public class RapportMensuelController {
         return RapportMensuelWebMapper.toResponse(getUseCase.byId(updated.getId()));
     }
 
+    @Transactional
     @Operation(
             summary = "Soumet le rapport au District (BROUILLON/VALIDE -> SOUMIS)",
             description = "Bouton 'Soumettre au District' du frontend. Apres soumission, le rapport est gele."

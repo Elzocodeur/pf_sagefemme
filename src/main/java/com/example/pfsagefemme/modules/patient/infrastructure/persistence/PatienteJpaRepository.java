@@ -3,6 +3,8 @@ package com.example.pfsagefemme.modules.patient.infrastructure.persistence;
 import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
 import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
 import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -257,5 +259,65 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
                      p.dateInscription DESC
             """)
     List<Patiente> findActivesOrderByLastVisitDesc(@Param("posteSanteId") UUID posteSanteId,
-                                                   org.springframework.data.domain.Pageable pageable);
+                                                   Pageable pageable);
+
+    // ====== Requetes paginées ================================================
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:q IS NULL OR :q = ''
+                   OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.numeroDossier) LIKE LOWER(CONCAT('%', :q, '%')))
+            ORDER BY p.nom, p.prenom
+            """)
+    Page<Patiente> searchPaged(@Param("q") String q,
+                               @Param("posteSanteId") UUID posteSanteId,
+                               Pageable pageable);
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.statutPatiente IN :statuts
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:q IS NULL OR :q = ''
+                   OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%')))
+            ORDER BY p.dateArret DESC NULLS LAST, p.nom
+            """)
+    Page<Patiente> findByStatutPatienteInPaged(@Param("statuts") List<StatutPatienteEnum> statuts,
+                                               @Param("posteSanteId") UUID posteSanteId,
+                                               @Param("q") String q,
+                                               Pageable pageable);
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:q IS NULL OR :q = ''
+                   OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%')))
+              AND NOT EXISTS (
+                  SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold
+              )
+              AND p.dateInscription < :threshold
+            ORDER BY p.dateInscription
+            """)
+    Page<Patiente> findInactivesSincePaged(@Param("threshold") LocalDate threshold,
+                                           @Param("posteSanteId") UUID posteSanteId,
+                                           @Param("q") String q,
+                                           Pageable pageable);
+
+    @Query("""
+            SELECT p FROM Patiente p
+            WHERE p.pvvih = TRUE
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:q IS NULL OR :q = ''
+                   OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
+                   OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%')))
+            ORDER BY p.dateInscription DESC, p.nom
+            """)
+    Page<Patiente> findPvvihPaged(@Param("posteSanteId") UUID posteSanteId,
+                                   @Param("q") String q,
+                                   Pageable pageable);
 }

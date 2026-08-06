@@ -10,6 +10,7 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteS
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PatienteWebMapper;
 import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
+import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +32,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "6 - Patientes (SAGE_FEMME)", description = "Creation et consultation des dossiers patientes")
@@ -76,6 +77,7 @@ public class PatienteController {
             @ApiResponse(responseCode = "200", description = "OK"),
             @ApiResponse(responseCode = "404", description = "Patiente introuvable", content = @io.swagger.v3.oas.annotations.media.Content)
     })
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/{id}")
     public PatientFolderResponse getFolder(@PathVariable UUID id) {
@@ -83,19 +85,20 @@ public class PatienteController {
     }
 
     @Operation(
-            summary = "Recherche de patientes (par nom ou prenom)",
-            description = "Renvoie une liste resumee. Le filtre par poste est optionnel - si null, recherche globale."
+            summary = "Recherche paginee de patientes (par nom, prenom ou numero dossier)",
+            description = "Renvoie une page de resultats. Le filtre par poste est optionnel."
     )
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping
-    public List<PatienteSummary> search(
+    public PageResponse<PatienteSummary> search(
             @Parameter(description = "Terme de recherche (partiel, insensible a la casse)")
             @RequestParam(required = false) String q,
             @Parameter(description = "Filtre par poste de sante")
-            @RequestParam(required = false) UUID posteSanteId
+            @RequestParam(required = false) UUID posteSanteId,
+            @Parameter(description = "Numero de page (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Taille de page") @RequestParam(defaultValue = "10") int size
     ) {
-        return searchPatientsUseCase.search(q, posteSanteId).stream()
-                .map(PatienteWebMapper::toSummary)
-                .toList();
+        return PageResponse.of(searchPatientsUseCase.search(q, posteSanteId, page, size)
+                .map(PatienteWebMapper::toSummary));
     }
 }

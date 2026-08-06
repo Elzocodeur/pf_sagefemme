@@ -20,6 +20,8 @@ public record DailyJournalEntryResponse(
         StatutPatienteEnum statutPatiente,
         TypeVisiteEnum typeVisite,
         MethodeContraceptiveEnum methodePf,
+        @Schema(description = "Ancienne methode avant changement (null = pas de changement ce jour)")
+        MethodeContraceptiveEnum ancienneMethode,
         @Schema(description = "Tension arterielle", example = "120/80") String tensionArterielle,
         @Schema(description = "Poids en kg", example = "64") Double poids,
         LocalDate prochainRdv

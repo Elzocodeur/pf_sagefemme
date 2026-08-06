@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ChangementMethodeJpaRepository extends JpaRepository<ChangementMethode, UUID> {
@@ -31,6 +32,8 @@ public interface ChangementMethodeJpaRepository extends JpaRepository<Changement
             @Param("to") LocalDate to,
             @Param("posteSanteId") UUID posteSanteId
     );
+
+    Optional<ChangementMethode> findFirstByPatienteIdAndDate(UUID patienteId, LocalDate date);
 
     @Query("""
             SELECT c FROM ChangementMethode c

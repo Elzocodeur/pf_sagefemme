@@ -12,8 +12,10 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteR
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteSummary;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.VisiteResponse;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Conversion Web <-> Domaine pour le module patient.
@@ -72,10 +74,12 @@ public final class PatienteWebMapper {
     // ====== Domain -> Response =====================================================
 
     public static PatienteResponse toResponse(Patiente p) {
+        Set<com.example.pfsagefemme.shared.domain.enums.GenreDeVieEnum> genreDeVie =
+                p.getGenreDeVie() != null ? new HashSet<>(p.getGenreDeVie()) : Set.of();
         return new PatienteResponse(
                 p.getId(), p.getNumeroDossier(), p.getPrenom(), p.getNom(), p.getAge(), p.getDateNaissance(),
                 p.getTelephone(), p.getProfession(), p.getAdresse(), p.getEthnie(), p.getReligion(),
-                p.getSituationMatrimoniale(), p.getNiveauInstruction(), p.getGenreDeVie(),
+                p.getSituationMatrimoniale(), p.getNiveauInstruction(), genreDeVie,
                 p.getProfessionMari(), p.getSourceInformation(), p.getReferee(), p.getOrigineReference(),
                 p.getPvvih(), p.getStadeOms(), p.getSousArv(), p.getTraitementArv(),
                 p.getStatutPatiente(), p.getMotifArret(), p.getDateArret(), p.getDateInscription(),

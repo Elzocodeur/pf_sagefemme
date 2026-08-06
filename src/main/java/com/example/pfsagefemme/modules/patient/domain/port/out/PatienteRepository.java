@@ -3,6 +3,8 @@ package com.example.pfsagefemme.modules.patient.domain.port.out;
 import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
 import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
 import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,6 +33,17 @@ public interface PatienteRepository {
 
     /** Recherche plein-texte simple sur nom + prenom (insensible a la casse). */
     List<Patiente> search(String query, UUID posteSanteId);
+
+    /** Version paginee de la recherche. */
+    Page<Patiente> searchPaged(String query, UUID posteSanteId, Pageable pageable);
+
+    Page<Patiente> findByStatutPatienteInPaged(
+        List<StatutPatienteEnum> statuts, UUID posteSanteId, String q, Pageable pageable);
+
+    Page<Patiente> findInactivesSinceThresholdPaged(
+        LocalDate thresholdDate, UUID posteSanteId, String q, Pageable pageable);
+
+    Page<Patiente> findPvvihPaged(UUID posteSanteId, String q, Pageable pageable);
 
     // ====== PVVIH (Section 5.2.3) ============================================
 

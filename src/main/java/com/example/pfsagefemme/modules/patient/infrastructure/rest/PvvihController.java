@@ -6,6 +6,7 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PvvihRowR
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PvvihStatsResponse;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PvvihRowMapper;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
+import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "8 - PVVIH (Section 5.2.3)", description = "Tableau de bord et listing des patientes vivant avec le VIH")
@@ -43,17 +43,19 @@ public class PvvihController {
     }
 
     @Operation(
-            summary = "Liste des patientes PVVIH",
+            summary = "Liste paginee des patientes PVVIH",
             description = "Vue tableau enrichi (stade OMS, ARV, methode PF, statut suivi, prochain RDV)."
     )
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping
-    public List<PvvihRowResponse> list(
+    public PageResponse<PvvihRowResponse> list(
             @Parameter(description = "Filtre par poste (null = global)")
-            @RequestParam(required = false) UUID posteSanteId
+            @RequestParam(required = false) UUID posteSanteId,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return listPvvihPatientsUseCase.list(posteSanteId).stream()
-                .map(PvvihRowMapper::toResponse)
-                .toList();
+        return PageResponse.of(listPvvihPatientsUseCase.list(posteSanteId, q, page, size)
+                .map(PvvihRowMapper::toResponse));
     }
 }

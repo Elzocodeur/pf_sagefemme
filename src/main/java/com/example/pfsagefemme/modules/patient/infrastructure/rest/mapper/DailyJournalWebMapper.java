@@ -42,6 +42,7 @@ public final class DailyJournalWebMapper {
                 p.getStatutPatiente(),
                 e.typeVisite(),
                 f == null ? null : f.getMethodeChoisie(),
+                e.ancienneMethode(),
                 v.getTensionArterielle(),
                 v.getPoids(),
                 v.getDateProchainRdv()

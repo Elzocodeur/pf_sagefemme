@@ -9,6 +9,9 @@ import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
 import com.example.pfsagefemme.modules.patient.domain.port.in.CreatePatientFolderUseCase;
 import com.example.pfsagefemme.modules.patient.domain.port.in.GetPatientFolderUseCase;
 import com.example.pfsagefemme.modules.patient.domain.port.in.SearchPatientsUseCase;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import com.example.pfsagefemme.modules.patient.domain.port.in.command.CreatePatientFolderCommand;
 import com.example.pfsagefemme.modules.patient.domain.port.in.command.CreatePatientFolderCommand.ClinicalExamSection;
 import com.example.pfsagefemme.modules.patient.domain.port.in.command.CreatePatientFolderCommand.IdentitySection;
@@ -84,8 +87,10 @@ public class PatientFolderService implements
 
     @Override
     @Transactional(readOnly = true)
-    public List<Patiente> search(String query, UUID posteSanteId) {
-        return patienteRepository.search(Optional.ofNullable(query).orElse(""), posteSanteId);
+    public Page<Patiente> search(String query, UUID posteSanteId, int page, int size) {
+        String q = Optional.ofNullable(query).orElse("");
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("nom", "prenom"));
+        return patienteRepository.searchPaged(q, posteSanteId, pageable);
     }
 
     // ---- Helpers de construction ---------------------------------------------------

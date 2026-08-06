@@ -31,4 +31,6 @@ public interface ChangementMethodeRepository {
     );
 
     void deleteById(UUID id);
+
+    Optional<ChangementMethode> findByPatienteIdAndDate(UUID patienteId, LocalDate date);
 }

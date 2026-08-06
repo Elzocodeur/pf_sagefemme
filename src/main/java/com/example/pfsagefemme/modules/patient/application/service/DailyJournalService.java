@@ -4,9 +4,12 @@ import com.example.pfsagefemme.modules.consultation.domain.model.entity.Visite;
 import com.example.pfsagefemme.modules.consultation.domain.port.out.FicheConsultationRepository;
 import com.example.pfsagefemme.modules.consultation.domain.port.out.VisiteRepository;
 import com.example.pfsagefemme.modules.consultation.infrastructure.persistence.VisiteJpaRepository;
+import com.example.pfsagefemme.modules.contraception.domain.model.entity.ChangementMethode;
+import com.example.pfsagefemme.modules.contraception.domain.port.out.ChangementMethodeRepository;
 import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
 import com.example.pfsagefemme.modules.patient.domain.port.in.GetDailyJournalUseCase;
 import com.example.pfsagefemme.modules.patient.domain.port.out.PatienteRepository;
+import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
 import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
 import com.example.pfsagefemme.shared.domain.enums.TypeVisiteEnum;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +39,7 @@ public class DailyJournalService implements GetDailyJournalUseCase {
     private final PatienteRepository patienteRepository;
     private final VisiteRepository visiteRepository;
     private final FicheConsultationRepository ficheConsultationRepository;
+    private final ChangementMethodeRepository changementMethodeRepository;
     /* compteur de visites par patiente jusqu'a une date - lecture seule directe sur la JPA repo */
     private final VisiteJpaRepository visiteJpaRepository;
 
@@ -77,12 +81,17 @@ public class DailyJournalService implements GetDailyJournalUseCase {
         Patiente p = visite.getPatiente();
         long visiteCount = visiteJpaRepository.countByPatienteIdAndDateLessThanEqual(p.getId(), journalDate);
         TypeVisiteEnum type = computeType(p, journalDate, visiteCount);
+        MethodeContraceptiveEnum ancienneMethode = changementMethodeRepository
+                .findByPatienteIdAndDate(p.getId(), journalDate)
+                .map(ChangementMethode::getAncienneMethode)
+                .orElse(null);
         return new JournalEntry(
                 visite,
                 p,
                 ficheConsultationRepository.findByPatienteId(p.getId()).orElse(null),
                 type,
-                visiteCount
+                visiteCount,
+                ancienneMethode
         );
     }
 

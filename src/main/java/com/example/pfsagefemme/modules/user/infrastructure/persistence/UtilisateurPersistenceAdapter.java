@@ -1,5 +1,6 @@
 package com.example.pfsagefemme.modules.user.infrastructure.persistence;
 
+import com.example.pfsagefemme.modules.user.domain.model.entity.AdminPoste;
 import com.example.pfsagefemme.modules.user.domain.model.entity.SageFemme;
 import com.example.pfsagefemme.modules.user.domain.model.entity.Utilisateur;
 import com.example.pfsagefemme.modules.user.domain.port.out.UtilisateurRepository;
@@ -7,6 +8,7 @@ import com.example.pfsagefemme.shared.domain.enums.RoleEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,11 +27,19 @@ public class UtilisateurPersistenceAdapter implements UtilisateurRepository {
 
     @Override
     public Optional<Utilisateur> findById(UUID id) {
+        Optional<AdminPoste> ap = utilisateurJpaRepository.findAdminPosteByIdWithPoste(id);
+        if (ap.isPresent()) return ap.map(u -> u);
+        Optional<SageFemme> sf = utilisateurJpaRepository.findSageFemmeByIdWithPoste(id);
+        if (sf.isPresent()) return sf.map(u -> u);
         return utilisateurJpaRepository.findById(id);
     }
 
     @Override
     public Optional<Utilisateur> findByEmail(String email) {
+        Optional<AdminPoste> ap = utilisateurJpaRepository.findAdminPosteByEmailWithPoste(email);
+        if (ap.isPresent()) return ap.map(u -> u);
+        Optional<SageFemme> sf = utilisateurJpaRepository.findSageFemmeByEmailWithPoste(email);
+        if (sf.isPresent()) return sf.map(u -> u);
         return utilisateurJpaRepository.findByEmail(email);
     }
 
@@ -55,12 +65,20 @@ public class UtilisateurPersistenceAdapter implements UtilisateurRepository {
 
     @Override
     public List<Utilisateur> findAll() {
-        return utilisateurJpaRepository.findAll();
+        List<Utilisateur> result = new ArrayList<>();
+        result.addAll(utilisateurJpaRepository.findAllSuperAdmins());
+        result.addAll(utilisateurJpaRepository.findAllAdminPostesWithPosteSante());
+        result.addAll(utilisateurJpaRepository.findAllSagesFemmesWithPosteSante());
+        return result;
     }
 
     @Override
     public List<Utilisateur> findByRole(RoleEnum role) {
-        return utilisateurJpaRepository.findByRole(role);
+        return switch (role) {
+            case SUPER_ADMIN -> new ArrayList<>(utilisateurJpaRepository.findAllSuperAdmins());
+            case ADMIN_POSTE -> new ArrayList<>(utilisateurJpaRepository.findAllAdminPostesWithPosteSante());
+            case SAGE_FEMME -> new ArrayList<>(utilisateurJpaRepository.findAllSagesFemmesWithPosteSante());
+        };
     }
 
     @Override

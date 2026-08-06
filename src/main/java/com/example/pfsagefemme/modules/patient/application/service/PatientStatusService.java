@@ -11,6 +11,10 @@ import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
 import com.example.pfsagefemme.shared.domain.exception.BusinessRuleException;
 import com.example.pfsagefemme.shared.domain.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,21 +69,25 @@ public class PatientStatusService implements
 
     @Override
     @Transactional(readOnly = true)
-    public List<StatusRow> arretees(UUID posteSanteId) {
-        return patienteRepository
-                .findByStatutPatienteIn(List.of(StatutPatienteEnum.ARRETEE), posteSanteId).stream()
-                .map(this::enrich)
-                .toList();
+    public Page<StatusRow> arretees(UUID posteSanteId, String q, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "dateArret").and(Sort.by("nom")));
+        String query = Optional.ofNullable(q).orElse("");
+        Page<Patiente> patientPage = patienteRepository.findByStatutPatienteInPaged(
+                List.of(StatutPatienteEnum.ARRETEE), posteSanteId, query, pageable);
+        List<StatusRow> rows = patientPage.getContent().stream().map(this::enrich).toList();
+        return new PageImpl<>(rows, pageable, patientPage.getTotalElements());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<StatusRow> abandons(UUID posteSanteId, int thresholdDays) {
+    public Page<StatusRow> abandons(UUID posteSanteId, int thresholdDays, String q, int page, int size) {
         int days = thresholdDays > 0 ? thresholdDays : DEFAULT_ABANDON_THRESHOLD_DAYS;
-        return patienteRepository
-                .findInactivesSinceThreshold(LocalDate.now().minusDays(days), posteSanteId).stream()
-                .map(this::enrich)
-                .toList();
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("dateInscription"));
+        String query = Optional.ofNullable(q).orElse("");
+        Page<Patiente> patientPage = patienteRepository.findInactivesSinceThresholdPaged(
+                LocalDate.now().minusDays(days), posteSanteId, query, pageable);
+        List<StatusRow> rows = patientPage.getContent().stream().map(this::enrich).toList();
+        return new PageImpl<>(rows, pageable, patientPage.getTotalElements());
     }
 
     private StatusRow enrich(Patiente p) {

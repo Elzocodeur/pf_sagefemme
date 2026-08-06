@@ -57,4 +57,9 @@ public class ChangementMethodePersistenceAdapter implements ChangementMethodeRep
     public void deleteById(UUID id) {
         jpaRepository.deleteById(id);
     }
+
+    @Override
+    public Optional<ChangementMethode> findByPatienteIdAndDate(UUID patienteId, LocalDate date) {
+        return jpaRepository.findFirstByPatienteIdAndDate(patienteId, date);
+    }
 }

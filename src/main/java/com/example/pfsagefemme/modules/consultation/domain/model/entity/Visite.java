@@ -11,7 +11,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
+
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -53,8 +53,7 @@ public class Visite extends BaseJpaEntity {
     @Column(name = "tension_arterielle", length = 30)
     private String tensionArterielle;
 
-    @Lob
-    @Column(name = "observations", columnDefinition = "TEXT")
+    @Column(name = "observations", columnDefinition = "text")
     private String observations;
 
     @Column(name = "unites_fournies", length = 100)

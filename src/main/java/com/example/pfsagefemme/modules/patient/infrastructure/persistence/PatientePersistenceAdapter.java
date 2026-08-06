@@ -5,6 +5,9 @@ import com.example.pfsagefemme.modules.patient.domain.port.out.PatienteRepositor
 import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
 import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -169,9 +172,30 @@ public class PatientePersistenceAdapter implements PatienteRepository {
     @Override
     public List<Patiente> findActivesOrderByLastVisitDesc(UUID posteSanteId, int limit) {
         return jpaRepository.findActivesOrderByLastVisitDesc(
-                posteSanteId,
-                org.springframework.data.domain.PageRequest.of(0, Math.max(limit, 1))
+                posteSanteId, PageRequest.of(0, Math.max(limit, 1))
         );
+    }
+
+    @Override
+    public Page<Patiente> searchPaged(String query, UUID posteSanteId, Pageable pageable) {
+        return jpaRepository.searchPaged(query, posteSanteId, pageable);
+    }
+
+    @Override
+    public Page<Patiente> findByStatutPatienteInPaged(
+            List<StatutPatienteEnum> statuts, UUID posteSanteId, String q, Pageable pageable) {
+        return jpaRepository.findByStatutPatienteInPaged(statuts, posteSanteId, q, pageable);
+    }
+
+    @Override
+    public Page<Patiente> findInactivesSinceThresholdPaged(
+            LocalDate thresholdDate, UUID posteSanteId, String q, Pageable pageable) {
+        return jpaRepository.findInactivesSincePaged(thresholdDate, posteSanteId, q, pageable);
+    }
+
+    @Override
+    public Page<Patiente> findPvvihPaged(UUID posteSanteId, String q, Pageable pageable) {
+        return jpaRepository.findPvvihPaged(posteSanteId, q, pageable);
     }
 
     @Override

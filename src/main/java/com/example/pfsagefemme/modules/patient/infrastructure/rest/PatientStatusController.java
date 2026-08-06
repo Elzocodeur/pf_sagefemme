@@ -9,6 +9,7 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatientSt
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.ReprisePatienteRequest;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PatientStatusRowMapper;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
+import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "9 - Statuts patientes", description = "Dashboard arretees / abandons + transitions de cycle de vie")
@@ -51,29 +51,35 @@ public class PatientStatusController {
         return new PatientStatusStatsResponse(s.arretees(), s.arreteesCeMois(), s.abandons(), s.anciennesReprises());
     }
 
-    @Operation(summary = "Liste des patientes arretees")
+    @Operation(summary = "Liste paginee des patientes arretees")
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/statuts/arretees")
-    public List<PatientStatusRowResponse> arretees(
-            @RequestParam(required = false) UUID posteSanteId
+    public PageResponse<PatientStatusRowResponse> arretees(
+            @RequestParam(required = false) UUID posteSanteId,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return listByStatusUseCase.arretees(posteSanteId).stream()
-                .map(PatientStatusRowMapper::toResponse).toList();
+        return PageResponse.of(listByStatusUseCase.arretees(posteSanteId, q, page, size)
+                .map(PatientStatusRowMapper::toResponse));
     }
 
     @Operation(
-            summary = "Liste des patientes en abandon (sans visite depuis N jours)",
+            summary = "Liste paginee des patientes en abandon (sans visite depuis N jours)",
             description = "Calcul dynamique : patientes ACTIVE sans visite depuis {thresholdDays} jours (defaut 90)."
     )
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/statuts/abandons")
-    public List<PatientStatusRowResponse> abandons(
+    public PageResponse<PatientStatusRowResponse> abandons(
             @RequestParam(required = false) UUID posteSanteId,
             @Parameter(description = "Seuil en jours sans visite", example = "90")
-            @RequestParam(defaultValue = "90") int thresholdDays
+            @RequestParam(defaultValue = "90") int thresholdDays,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return listByStatusUseCase.abandons(posteSanteId, thresholdDays).stream()
-                .map(PatientStatusRowMapper::toResponse).toList();
+        return PageResponse.of(listByStatusUseCase.abandons(posteSanteId, thresholdDays, q, page, size)
+                .map(PatientStatusRowMapper::toResponse));
     }
 
     @Operation(
