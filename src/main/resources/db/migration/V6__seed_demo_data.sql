@@ -35,15 +35,38 @@ VALUES
   ('bb000004-0000-0000-0000-000000000004', 'MAT-SF-008', 'Planification familiale', 'aa000003-0000-0000-0000-000000000003'),
   ('bb000005-0000-0000-0000-000000000005', 'MAT-SF-009', 'Planification familiale', 'aa000003-0000-0000-0000-000000000003');
 
+-- ---------------------------------------------------------------------------
+-- 3bis. PS1 — poste + sages-femmes referencees plus bas par les patientes 01-15
+-- (n'existaient pas encore dans le schema : la migration originale supposait
+-- a tort qu'elles avaient ete creees hors-migration sur une autre base).
+-- ---------------------------------------------------------------------------
+INSERT INTO postes_sante (id, nom, adresse, telephone, district, region, actif, created_at, updated_at)
+VALUES
+  ('5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e', 'CS Poste de Sante 1', 'Dakar Centre, Dakar', '+221 33 800 00 00', 'Dakar', 'Dakar', true, NOW(), NOW());
+
+INSERT INTO utilisateurs (id, nom, prenom, email, mot_de_passe, telephone, role, actif, username, created_at, updated_at)
+VALUES
+  ('8a837310-9f1f-495d-a8a7-345e340a78df', 'Diop',   'Awa',    'awa.diop@planifem.sn',    '$2b$10$inOJyXssY8Ix42vk8UYNdejGsbfnLMWvygl9jSZVqMyEvcdA9Jc.C', '+221 77 100 0000', 'SAGE_FEMME', true, 'awa.diop',    NOW(), NOW()),
+  ('9145fff3-b9a2-4d5f-adfc-09607d74ab5c', 'Diagne', 'Sokhna', 'sokhna.diagne@planifem.sn', '$2b$10$inOJyXssY8Ix42vk8UYNdejGsbfnLMWvygl9jSZVqMyEvcdA9Jc.C', '+221 77 100 0001', 'SAGE_FEMME', true, 'sokhna.diagne', NOW(), NOW()),
+  ('6bad952a-6635-4ebe-b0f2-7d4523d14c7e', 'Sy',     'Bineta', 'bineta.sy@planifem.sn',    '$2b$10$inOJyXssY8Ix42vk8UYNdejGsbfnLMWvygl9jSZVqMyEvcdA9Jc.C', '+221 77 100 0002', 'SAGE_FEMME', true, 'bineta.sy',   NOW(), NOW()),
+  ('6ac0bc98-77c7-4105-92dd-6202d6f898ca', 'Gaye',   'Mame',   'mame.gaye@planifem.sn',    '$2b$10$inOJyXssY8Ix42vk8UYNdejGsbfnLMWvygl9jSZVqMyEvcdA9Jc.C', '+221 77 100 0003', 'SAGE_FEMME', true, 'mame.gaye',   NOW(), NOW());
+
+INSERT INTO sages_femmes (id, matricule, specialite, poste_sante_id)
+VALUES
+  ('8a837310-9f1f-495d-a8a7-345e340a78df', 'MAT-SF-001', 'Planification familiale', '5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e'),
+  ('9145fff3-b9a2-4d5f-adfc-09607d74ab5c', 'MAT-SF-002', 'Planification familiale', '5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e'),
+  ('6bad952a-6635-4ebe-b0f2-7d4523d14c7e', 'MAT-SF-003', 'Planification familiale', '5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e'),
+  ('6ac0bc98-77c7-4105-92dd-6202d6f898ca', 'MAT-SF-004', 'Planification familiale', '5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e');
+
 -- Raccourcis de lecture (commentaires uniquement — pas de variables SQL)
--- PS1 = 5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e  (CS Poste de Sante 1, existant)
+-- PS1 = 5fa2b02c-0cdf-4a43-87b6-bb516e92bb0e  (CS Poste de Sante 1, cree ci-dessus)
 -- PS2 = aa000001  (CS Pikine)
 -- PS3 = aa000002  (CS Saint-Louis)
 -- PS4 = aa000003  (CS Thiès)
--- SF1 = 8a837310-9f1f-495d-a8a7-345e340a78df  (existant, PS1)
--- SF2 = 9145fff3-b9a2-4d5f-adfc-09607d74ab5c  (existant, PS1)
--- SF3 = 6bad952a-6635-4ebe-b0f2-7d4523d14c7e  (existant, PS1)
--- SF4 = 6ac0bc98-77c7-4105-92dd-6202d6f898ca  (existant, PS1)
+-- SF1 = 8a837310-9f1f-495d-a8a7-345e340a78df  (cree ci-dessus, PS1)
+-- SF2 = 9145fff3-b9a2-4d5f-adfc-09607d74ab5c  (cree ci-dessus, PS1)
+-- SF3 = 6bad952a-6635-4ebe-b0f2-7d4523d14c7e  (cree ci-dessus, PS1)
+-- SF4 = 6ac0bc98-77c7-4105-92dd-6202d6f898ca  (cree ci-dessus, PS1)
 -- SF5 = bb000001  (Pikine)   SF6 = bb000002  (Pikine)
 -- SF7 = bb000003  (Saint-Louis)
 -- SF8 = bb000004  (Thiès)    SF9 = bb000005  (Thiès)
