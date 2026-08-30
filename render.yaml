@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: pf-sagefemme-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+      # Neon Postgres - meme base qu'en local (voir application-local.properties).
+      # A renseigner manuellement dans le dashboard Render (jamais dans ce fichier,
+      # qui est versionne dans git).
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+
+      # JWT - secret genere automatiquement par Render au premier deploiement.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MINUTES
+        value: "60"
+      - key: JWT_ISSUER
+        value: planifem
+
+      # Super admin bootstrap - a definir manuellement (ne pas garder les valeurs par defaut du code).
+      - key: BOOTSTRAP_SUPER_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_SUPER_ADMIN_NOM
+        value: Admin
+      - key: BOOTSTRAP_SUPER_ADMIN_PRENOM
+        value: Super

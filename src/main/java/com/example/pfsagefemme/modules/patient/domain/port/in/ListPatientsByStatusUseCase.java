@@ -13,5 +13,10 @@ public interface ListPatientsByStatusUseCase {
 
   Page<StatusRow> arretees(UUID posteSanteId, String q, int page, int size);
 
+<<<<<<< Updated upstream
   Page<StatusRow> abandons(UUID posteSanteId, int thresholdDays, String q, int page, int size);
+=======
+
+    List<StatusRow> abandons(UUID posteSanteId, int thresholdDays);
+>>>>>>> Stashed changes
 }

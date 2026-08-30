@@ -35,14 +35,7 @@ import java.util.UUID;
 
 /**
  * Orchestrateur du dossier patient.
- *
- * Cree atomiquement (1 seule transaction) :
- *  1. la {@link Patiente}
- *  2. sa {@link FicheConsultation} (avec antecedents + methode choisie)
- *  3. sa 1ere {@link Visite}
- *
- * La sage-femme appelante (et donc son poste) est resolue depuis l'id passe par la couche web.
- * Toutes les references sont propagees automatiquement (poste, sage-femme).
+
  */
 @Service
 @Transactional

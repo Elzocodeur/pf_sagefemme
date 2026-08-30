@@ -22,11 +22,6 @@ import java.util.Set;
 
 /**
  * Requete consolidee de creation d'un dossier patient.
- *
- * Mirroir des 3 etapes du wizard frontend :
- *   1. {@link IdentitySection}     - etat civil
- *   2. {@link ClinicalExamSection} - examen clinique
- *   3. {@link TreatmentSection}    - methode + 1ere visite
  */
 @Schema(description = "Creation complete d'un dossier patient (Patiente + FicheConsultation + 1ere Visite) en une seule operation")
 public record CreatePatientFolderRequest(
