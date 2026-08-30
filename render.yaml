@@ -25,6 +25,11 @@ services:
         sync: false
       - key: DB_SSLMODE
         value: require
+      # Contournement Neon (SNI TLS perdu dans l'environnement reseau de Render) :
+      # https://neon.tech/docs/connect/connection-errors#the-endpoint-id-is-not-specified
+      # Valeur = premier label du hostname DB_HOST, "-pooler" inclus (doit matcher le SNI attendu par Neon).
+      - key: DB_PG_OPTIONS
+        value: "endpoint%3Dep-red-math-amyjs7ia-pooler"
 
       # JWT - secret genere automatiquement par Render au premier deploiement.
       - key: JWT_SECRET
