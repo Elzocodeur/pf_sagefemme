@@ -30,7 +30,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatsPosteService implements GetStatsPosteUseCase {
 
-    private static final int ABANDON_THRESHOLD = 90;
+    private static final java.time.format.DateTimeFormatter FR_DATE =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final int ABANDON_THRESHOLD = PatienteRepository.ABANDON_THRESHOLD_DAYS;
     private static final int ACTIVES_RECENTES_LIMIT = 5;
 
     private final PatienteRepository patienteRepository;
@@ -53,8 +55,11 @@ public class StatsPosteService implements GetStatsPosteUseCase {
         // Delta mensuel nouvelles PV
         YearMonth ym = YearMonth.now();
         long nowMonth = patienteRepository.countNouvellesInscritesEntre(ym.atDay(1), ym.atEndOfMonth(), posteSanteId);
-        long prevMonth = patienteRepository.countNouvellesInscritesEntre(
-                ym.minusMonths(1).atDay(1), ym.minusMonths(1).atEndOfMonth(), posteSanteId);
+        // Meme periode du mois precedent (1er -> meme jour) pour ne pas penaliser le debut de mois
+        LocalDate prevFrom = ym.minusMonths(1).atDay(1);
+        LocalDate prevSameDay = prevFrom.plusDays(LocalDate.now().getDayOfMonth() - 1L);
+        LocalDate prevTo = prevSameDay.isAfter(ym.minusMonths(1).atEndOfMonth()) ? ym.minusMonths(1).atEndOfMonth() : prevSameDay;
+        long prevMonth = patienteRepository.countNouvellesInscritesEntre(prevFrom, prevTo, posteSanteId);
         double evolution = prevMonth == 0 ? 0.0 : ((double) (nowMonth - prevMonth) / prevMonth) * 100.0;
 
         // Taux de retention
@@ -117,16 +122,21 @@ public class StatsPosteService implements GetStatsPosteUseCase {
 
         abandons.stream().limit(3).forEach(p -> {
             Visite last = visiteRepository.findLatestByPatienteId(p.getId()).orElse(null);
-            long jours = last != null
-                    ? ChronoUnit.DAYS.between(last.getDate(), LocalDate.now())
-                    : 0L;
-            items.add(new ASurveillerItem("ABANDON", p.getId(), p.getPrenom(), p.getNom(),
-                    "Dernier rendez-vous : " + (last != null ? last.getDate() : "inconnu") + " (" + jours + "j)"));
+            String message;
+            if (last != null) {
+                message = "Dernière visite le " + FR_DATE.format(last.getDate())
+                        + " (il y a " + ChronoUnit.DAYS.between(last.getDate(), LocalDate.now()) + " j)";
+            } else if (p.getDateInscription() != null) {
+                message = "Aucune visite depuis l'inscription du " + FR_DATE.format(p.getDateInscription());
+            } else {
+                message = "Aucune visite enregistrée";
+            }
+            items.add(new ASurveillerItem("ABANDON", p.getId(), p.getPrenom(), p.getNom(), message));
         });
 
         arretees.stream().limit(3).forEach(p ->
                 items.add(new ASurveillerItem("ARRETEE", p.getId(), p.getPrenom(), p.getNom(),
-                        p.getDateArret() != null ? "Décision patiente le " + p.getDateArret() : "Arrêt enregistré"))
+                        p.getDateArret() != null ? "Arrêt le " + FR_DATE.format(p.getDateArret()) : "Arrêt enregistré"))
         );
 
         return items;

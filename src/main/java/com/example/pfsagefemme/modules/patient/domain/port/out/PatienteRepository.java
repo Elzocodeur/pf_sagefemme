@@ -17,6 +17,10 @@ import java.util.UUID;
  */
 public interface PatienteRepository {
 
+    /** Nombre de jours sans visite au-dela duquel une patiente est consideree en abandon. */
+    int ABANDON_THRESHOLD_DAYS = 90;
+
+
     Patiente save(Patiente patiente);
 
     Optional<Patiente> findById(UUID id);
@@ -60,8 +64,8 @@ public interface PatienteRepository {
     List<Patiente> findByStatutPatienteIn(List<StatutPatienteEnum> statuts, UUID posteSanteId);
 
     /**
-     * Patientes ACTIVE dont le dernier RDV planifie est depasse depuis plus de N jours
-     * (= candidates "abandon").
+     * Abandons : statut ABANDON, ou patiente ACTIVE/NOUVELLE inscrite avant le seuil
+     * et sans visite depuis le seuil. Definition unique utilisee par tous les ecrans.
      */
     List<Patiente> findInactivesSinceThreshold(LocalDate thresholdDate, UUID posteSanteId);
 
@@ -86,18 +90,43 @@ public interface PatienteRepository {
     long countNouvellesByMethodeAndAge(MethodeContraceptiveEnum methode,
                                        int ageMin, int ageMax,
                                        LocalDate from, LocalDate to,
-                                       UUID posteSanteId);
+                                       UUID posteSanteId, UUID sageFemmeId);
+
+    default long countNouvellesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax,
+                                               LocalDate from, LocalDate to, UUID posteSanteId) {
+        return countNouvellesByMethodeAndAge(methode, ageMin, ageMax, from, to, posteSanteId, null);
+    }
 
     long countActivesByMethodeAndAge(MethodeContraceptiveEnum methode,
                                      int ageMin, int ageMax,
-                                     UUID posteSanteId);
+                                     UUID posteSanteId, UUID sageFemmeId);
 
+    default long countActivesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax, UUID posteSanteId) {
+        return countActivesByMethodeAndAge(methode, ageMin, ageMax, posteSanteId, null);
+    }
+
+    /** Inactives du mois : arretees dans le mois, inactives, ou en abandon (definition unique). */
     long countInactivesByMethodeAndAge(MethodeContraceptiveEnum methode,
                                        int ageMin, int ageMax,
                                        LocalDate from, LocalDate to,
-                                       UUID posteSanteId);
+                                       UUID posteSanteId, UUID sageFemmeId);
 
-    long countPvvihActivesByAge(int ageMin, int ageMax, UUID posteSanteId);
+    default long countInactivesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax,
+                                               LocalDate from, LocalDate to, UUID posteSanteId) {
+        return countInactivesByMethodeAndAge(methode, ageMin, ageMax, from, to, posteSanteId, null);
+    }
+
+    long countPvvihActivesByAge(int ageMin, int ageMax, UUID posteSanteId, UUID sageFemmeId);
+
+    default long countPvvihActivesByAge(int ageMin, int ageMax, UUID posteSanteId) {
+        return countPvvihActivesByAge(ageMin, ageMax, posteSanteId, null);
+    }
+
+    /** Nombre d'abandons a ce jour (definition unique, cf. {@link #ABANDON_THRESHOLD_DAYS}). */
+    long countAbandons(UUID posteSanteId, UUID sageFemmeId);
+
+    /** Anciennes PV du mois : inscrites avant {@code from} et revues entre {@code from} et {@code to}. */
+    long countAnciennesPv(LocalDate from, LocalDate to, UUID posteSanteId, UUID sageFemmeId);
 
     // ====== Compteurs pour le journal du jour ================================
 

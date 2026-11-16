@@ -8,6 +8,7 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatientSt
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatientStatusStatsResponse;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.ReprisePatienteRequest;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PatientStatusRowMapper;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,8 @@ public class PatientStatusController {
     private final GetPatientStatusDashboardUseCase dashboardUseCase;
     private final ListPatientsByStatusUseCase listByStatusUseCase;
     private final UpdatePatientStatusUseCase updateStatusUseCase;
+    private final PosteScope posteScope;
+    private final PatienteAccessGuard patienteAccessGuard;
 
     @Operation(summary = "Compteurs de l'ecran 'Statuts patientes'")
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
@@ -47,7 +50,7 @@ public class PatientStatusController {
             @Parameter(description = "Filtre par poste (null = global)")
             @RequestParam(required = false) UUID posteSanteId
     ) {
-        var s = dashboardUseCase.stats(posteSanteId);
+        var s = dashboardUseCase.stats(posteScope.resolve(posteSanteId));
         return new PatientStatusStatsResponse(s.arretees(), s.arreteesCeMois(), s.abandons(), s.anciennesReprises());
     }
 
@@ -60,7 +63,7 @@ public class PatientStatusController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return PageResponse.of(listByStatusUseCase.arretees(posteSanteId, q, page, size)
+        return PageResponse.of(listByStatusUseCase.arretees(posteScope.resolve(posteSanteId), q, page, size)
                 .map(PatientStatusRowMapper::toResponse));
     }
 
@@ -78,7 +81,7 @@ public class PatientStatusController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return PageResponse.of(listByStatusUseCase.abandons(posteSanteId, thresholdDays, q, page, size)
+        return PageResponse.of(listByStatusUseCase.abandons(posteScope.resolve(posteSanteId), thresholdDays, q, page, size)
                 .map(PatientStatusRowMapper::toResponse));
     }
 
@@ -93,6 +96,7 @@ public class PatientStatusController {
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/patientes/{id}/arreter")
     public ResponseEntity<Void> arreter(@PathVariable UUID id, @Valid @RequestBody ArretPatienteRequest request) {
+        patienteAccessGuard.check(id);
         updateStatusUseCase.arreter(new UpdatePatientStatusUseCase.ArretCommand(id, request.motif(), request.dateArret()));
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
@@ -109,6 +113,7 @@ public class PatientStatusController {
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/patientes/{id}/reprendre")
     public ResponseEntity<Void> reprendre(@PathVariable UUID id, @Valid @RequestBody(required = false) ReprisePatienteRequest request) {
+        patienteAccessGuard.check(id);
         var observations = request == null ? null : request.observations();
         updateStatusUseCase.reprendre(new UpdatePatientStatusUseCase.RepriseCommand(id, observations));
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

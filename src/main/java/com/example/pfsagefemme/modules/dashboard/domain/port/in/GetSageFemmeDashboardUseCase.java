@@ -23,7 +23,8 @@ public interface GetSageFemmeDashboardUseCase {
 
     record AbandonsRelance(int thresholdDays, List<AbandonRelance> items, long totalEnRetard) {}
 
-    record ActiveRecente(Patiente patiente, Visite latestVisite, StatutCliniqueEnum statutClinique) {}
+    record ActiveRecente(Patiente patiente, Visite latestVisite, StatutCliniqueEnum statutClinique,
+                         com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum methode) {}
 
     record SageFemmeDashboard(
             StatCard total,

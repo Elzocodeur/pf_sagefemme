@@ -34,7 +34,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DailyJournalService implements GetDailyJournalUseCase {
 
-    private static final int ABANDON_THRESHOLD_DAYS = 90;
+    private static final int ABANDON_THRESHOLD_DAYS = PatienteRepository.ABANDON_THRESHOLD_DAYS;
 
     private final PatienteRepository patienteRepository;
     private final VisiteRepository visiteRepository;

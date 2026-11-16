@@ -3,10 +3,7 @@ package com.example.pfsagefemme.modules.dashboard.infrastructure.rest;
 import com.example.pfsagefemme.modules.dashboard.domain.port.in.GetSageFemmeDashboardUseCase;
 import com.example.pfsagefemme.modules.dashboard.infrastructure.rest.dto.SageFemmeDashboardResponse;
 import com.example.pfsagefemme.modules.dashboard.infrastructure.rest.mapper.DashboardWebMapper;
-import com.example.pfsagefemme.modules.user.domain.model.entity.AdminPoste;
-import com.example.pfsagefemme.modules.user.domain.model.entity.SageFemme;
-import com.example.pfsagefemme.modules.user.domain.port.in.GetCurrentUserUseCase;
-import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,7 +24,7 @@ import java.util.UUID;
 public class DashboardController {
 
     private final GetSageFemmeDashboardUseCase dashboardUseCase;
-    private final GetCurrentUserUseCase getCurrentUserUseCase;
+    private final PosteScope posteScope;
 
     @Operation(
             summary = "Dashboard sage-femme",
@@ -38,7 +35,7 @@ public class DashboardController {
                       - bloc 'Abandons a relancer' (top 3 RdV manques > 15j)
                       - tableau 'Actives recentes' (top 3 par derniere visite)
 
-                    Le filtre `posteSanteId` est optionnel - sans valeur, on prend le poste de la sage-femme connectee.
+                    Le poste est impose par l'utilisateur connecte (SAGE_FEMME / ADMIN_POSTE) ; seul un SUPER_ADMIN peut filtrer librement.
                     """
     )
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
@@ -47,18 +44,8 @@ public class DashboardController {
             @Parameter(description = "Filtre par poste (defaut : poste de l'utilisateur courant)")
             @RequestParam(required = false) UUID posteSanteId
     ) {
-        UUID effectivePosteId = posteSanteId != null ? posteSanteId : currentUserPosteId();
+        UUID effectivePosteId = posteScope.resolve(posteSanteId);
         return DashboardWebMapper.toResponse(dashboardUseCase.load(effectivePosteId));
     }
 
-    private UUID currentUserPosteId() {
-        var u = getCurrentUserUseCase.byId(SecurityUtils.requireCurrentUserId());
-        if (u instanceof SageFemme sf && sf.getPosteSante() != null) {
-            return sf.getPosteSante().getId();
-        }
-        if (u instanceof AdminPoste ap && ap.getPosteSante() != null) {
-            return ap.getPosteSante().getId();
-        }
-        return null; // SUPER_ADMIN -> vue globale
-    }
 }

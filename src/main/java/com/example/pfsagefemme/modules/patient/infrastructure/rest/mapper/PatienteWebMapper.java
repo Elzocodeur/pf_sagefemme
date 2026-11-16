@@ -12,6 +12,9 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteR
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteSummary;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.VisiteResponse;
 
+import com.example.pfsagefemme.modules.contraception.domain.model.entity.ChangementMethode;
+import com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -84,15 +87,37 @@ public final class PatienteWebMapper {
                 p.getPvvih(), p.getStadeOms(), p.getSousArv(), p.getTraitementArv(),
                 p.getStatutPatiente(), p.getMotifArret(), p.getDateArret(), p.getDateInscription(),
                 p.getPosteSante() == null ? null : p.getPosteSante().getId(),
+                p.getPosteSante() == null ? null : p.getPosteSante().getNom(),
                 p.getSageFemme() == null ? null : p.getSageFemme().getId()
         );
     }
 
-    public static PatienteSummary toSummary(Patiente p) {
+    public static PatienteSummary toSummary(Patiente p, MethodeContraceptiveEnum methode) {
+        return toSummary(p, methode, List.of());
+    }
+
+    /** Variante enrichie : expose le dernier changement de methode pour l'affichage en liste. */
+    public static PatienteSummary toSummary(Patiente p, MethodeContraceptiveEnum methode,
+                                            List<ChangementMethode> changements) {
+        ChangementMethode dernier = changements.stream()
+                .max(java.util.Comparator.comparing(ChangementMethode::getDate))
+                .orElse(null);
+        MethodeContraceptiveEnum ancienne = dernier == null ? null : dernier.getAncienneMethode();
         return new PatienteSummary(
                 p.getId(), p.getNumeroDossier(), p.getPrenom(), p.getNom(), p.getAge(),
-                p.getStatutPatiente(), p.getPvvih(), p.getDateInscription()
+                p.getStatutPatiente(), p.getPvvih(), p.getDateInscription(),
+                methode, methodeLabel(methode),
+                p.getPosteSante() == null ? null : p.getPosteSante().getNom(),
+                changements.size(),
+                ancienne, methodeLabel(ancienne),
+                dernier == null ? null : dernier.getDate(),
+                dernier == null ? null : dernier.getMotif()
         );
+    }
+
+    public static String methodeLabel(MethodeContraceptiveEnum m) {
+        if (m == null) return null;
+        return m.getSousCategorie().isBlank() ? m.getCategorie() : m.getCategorie() + " " + m.getSousCategorie();
     }
 
     public static FicheConsultationResponse toResponse(FicheConsultation f) {
@@ -101,7 +126,9 @@ public final class PatienteWebMapper {
                 f.getPatiente() == null ? null : f.getPatiente().getId(),
                 f.getSageFemme() == null ? null : f.getSageFemme().getId(),
                 f.getPosteSante() == null ? null : f.getPosteSante().getId(),
-                f.getMenarchesAge(), f.getEnfantsVivants(), f.getEnfantsDecedes(), f.getAvortements(),
+                f.getMenarchesAge(), f.getDureeRegles(), f.getCycleMenstruel(), f.getDateDernieresRegles(),
+                f.getEnfantsVivants(), f.getEnfantsDecedes(), f.getAvortements(),
+                f.getMortsNes(), f.getAgeDernierEnfant(), f.getAllaitementExclusif(),
                 f.getTaille(), f.getPoids(),
                 f.getHypertensionArterielle(), f.getDiabete(), f.getDrepanocytose(), f.getAllergieCuivre(),
                 f.getPlaintesActuelles(), f.getExamensComplementaires(), f.getMethodeChoisie()

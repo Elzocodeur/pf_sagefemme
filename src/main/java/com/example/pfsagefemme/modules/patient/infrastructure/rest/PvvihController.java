@@ -5,6 +5,7 @@ import com.example.pfsagefemme.modules.patient.domain.port.in.ListPvvihPatientsU
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PvvihRowResponse;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PvvihStatsResponse;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PvvihRowMapper;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,7 @@ public class PvvihController {
 
     private final GetPvvihDashboardUseCase getPvvihDashboardUseCase;
     private final ListPvvihPatientsUseCase listPvvihPatientsUseCase;
+    private final PosteScope posteScope;
 
     @Operation(
             summary = "Compteurs Femmes PVVIH",
@@ -38,7 +40,7 @@ public class PvvihController {
             @Parameter(description = "Filtre par poste (null = global)")
             @RequestParam(required = false) UUID posteSanteId
     ) {
-        var s = getPvvihDashboardUseCase.stats(posteSanteId);
+        var s = getPvvihDashboardUseCase.stats(posteScope.resolve(posteSanteId));
         return new PvvihStatsResponse(s.totalAnnuel(), s.actives(), s.nouvellesCeMois());
     }
 
@@ -55,7 +57,7 @@ public class PvvihController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return PageResponse.of(listPvvihPatientsUseCase.list(posteSanteId, q, page, size)
+        return PageResponse.of(listPvvihPatientsUseCase.list(posteScope.resolve(posteSanteId), q, page, size)
                 .map(PvvihRowMapper::toResponse));
     }
 }

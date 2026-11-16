@@ -114,24 +114,42 @@ public class PatientePersistenceAdapter implements PatienteRepository {
 
     @Override
     public long countNouvellesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax,
-                                              LocalDate from, LocalDate to, UUID posteSanteId) {
-        return jpaRepository.countNouvellesByMethodeAndAge(methode, ageMin, ageMax, from, to, posteSanteId);
+                                              LocalDate from, LocalDate to, UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countNouvellesByMethodeAndAge(methode, ageMin, ageMax, from, to, posteSanteId, sageFemmeId);
     }
 
     @Override
-    public long countActivesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax, UUID posteSanteId) {
-        return jpaRepository.countActivesByMethodeAndAge(methode, ageMin, ageMax, posteSanteId);
+    public long countActivesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax,
+                                            UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countActivesByMethodeAndAge(methode, ageMin, ageMax, posteSanteId, sageFemmeId);
     }
 
     @Override
     public long countInactivesByMethodeAndAge(MethodeContraceptiveEnum methode, int ageMin, int ageMax,
-                                              LocalDate from, LocalDate to, UUID posteSanteId) {
-        return jpaRepository.countInactivesByMethodeAndAge(methode, ageMin, ageMax, from, to, posteSanteId);
+                                              LocalDate from, LocalDate to, UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countInactivesByMethodeAndAge(methode, ageMin, ageMax, from, to,
+                abandonThresholdAt(to), posteSanteId, sageFemmeId);
     }
 
     @Override
-    public long countPvvihActivesByAge(int ageMin, int ageMax, UUID posteSanteId) {
-        return jpaRepository.countPvvihActivesByAge(ageMin, ageMax, posteSanteId);
+    public long countPvvihActivesByAge(int ageMin, int ageMax, UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countPvvihActivesByAge(ageMin, ageMax, posteSanteId, sageFemmeId);
+    }
+
+    @Override
+    public long countAbandons(UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countAbandons(abandonThresholdAt(LocalDate.now()), posteSanteId, sageFemmeId);
+    }
+
+    @Override
+    public long countAnciennesPv(LocalDate from, LocalDate to, UUID posteSanteId, UUID sageFemmeId) {
+        return jpaRepository.countAnciennesPv(from, to, posteSanteId, sageFemmeId);
+    }
+
+    /** Seuil d'abandon vu a la date {@code at} (jamais dans le futur). */
+    private static LocalDate abandonThresholdAt(LocalDate at) {
+        LocalDate today = LocalDate.now();
+        return (at.isAfter(today) ? today : at).minusDays(ABANDON_THRESHOLD_DAYS);
     }
 
     @Override

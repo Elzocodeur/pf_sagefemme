@@ -6,6 +6,7 @@ import com.example.pfsagefemme.modules.consultation.domain.port.in.ValidateVisit
 import com.example.pfsagefemme.modules.consultation.infrastructure.rest.dto.CreateVisiteRequest;
 import com.example.pfsagefemme.modules.consultation.infrastructure.rest.dto.VisiteDetailResponse;
 import com.example.pfsagefemme.modules.consultation.infrastructure.rest.mapper.VisiteWebMapper;
+import com.example.pfsagefemme.modules.patient.infrastructure.rest.PatienteAccessGuard;
 import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,7 @@ public class VisiteController {
     private final CreateVisiteUseCase createVisiteUseCase;
     private final ListVisitesByPatienteUseCase listVisitesByPatienteUseCase;
     private final ValidateVisiteUseCase validateVisiteUseCase;
+    private final PatienteAccessGuard patienteAccessGuard;
 
     @Operation(
             summary = "Enregistre une nouvelle visite de suivi",
@@ -62,6 +64,7 @@ public class VisiteController {
             @PathVariable UUID patienteId,
             @Valid @RequestBody CreateVisiteRequest request
     ) {
+        patienteAccessGuard.check(patienteId);
         var visite = createVisiteUseCase.create(
                 VisiteWebMapper.toCommand(patienteId, SecurityUtils.requireCurrentUserId(), request)
         );
@@ -74,6 +77,7 @@ public class VisiteController {
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/patientes/{patienteId}/visites")
     public List<VisiteDetailResponse> listByPatiente(@PathVariable UUID patienteId) {
+        patienteAccessGuard.check(patienteId);
         return listVisitesByPatienteUseCase.list(patienteId).stream()
                 .map(VisiteWebMapper::toResponse)
                 .toList();

@@ -72,7 +72,9 @@ public final class DashboardWebMapper {
                 p.getPrenom(),
                 p.getNom(),
                 v == null ? null : v.getDate(),
-                ar.statutClinique()
+                ar.statutClinique(),
+                ar.methode(),
+                com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PatienteWebMapper.methodeLabel(ar.methode())
         );
     }
 }

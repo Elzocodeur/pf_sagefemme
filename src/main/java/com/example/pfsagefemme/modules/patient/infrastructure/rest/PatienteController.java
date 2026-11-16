@@ -1,5 +1,8 @@
 package com.example.pfsagefemme.modules.patient.infrastructure.rest;
 
+import com.example.pfsagefemme.modules.consultation.domain.model.entity.FicheConsultation;
+import com.example.pfsagefemme.modules.consultation.domain.port.out.FicheConsultationRepository;
+import com.example.pfsagefemme.modules.contraception.domain.port.out.ChangementMethodeRepository;
 import com.example.pfsagefemme.modules.patient.domain.model.PatientFolder;
 import com.example.pfsagefemme.modules.patient.domain.port.in.CreatePatientFolderUseCase;
 import com.example.pfsagefemme.modules.patient.domain.port.in.GetPatientFolderUseCase;
@@ -9,6 +12,7 @@ import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatientFo
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.PatienteSummary;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.PatienteWebMapper;
 import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import com.example.pfsagefemme.shared.infrastructure.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +47,9 @@ public class PatienteController {
     private final CreatePatientFolderUseCase createPatientFolderUseCase;
     private final GetPatientFolderUseCase getPatientFolderUseCase;
     private final SearchPatientsUseCase searchPatientsUseCase;
+    private final PosteScope posteScope;
+    private final FicheConsultationRepository ficheConsultationRepository;
+    private final ChangementMethodeRepository changementMethodeRepository;
 
     @Operation(
             summary = "Cree un dossier patient complet",
@@ -81,24 +88,31 @@ public class PatienteController {
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/{id}")
     public PatientFolderResponse getFolder(@PathVariable UUID id) {
-        return PatienteWebMapper.toResponse(getPatientFolderUseCase.byPatienteId(id));
+        PatientFolder folder = getPatientFolderUseCase.byPatienteId(id);
+        var poste = folder.patiente().getPosteSante();
+        posteScope.checkAccess(poste == null ? null : poste.getId());
+        return PatienteWebMapper.toResponse(folder);
     }
 
     @Operation(
             summary = "Recherche paginee de patientes (par nom, prenom ou numero dossier)",
             description = "Renvoie une page de resultats. Le filtre par poste est optionnel."
     )
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping
     public PageResponse<PatienteSummary> search(
             @Parameter(description = "Terme de recherche (partiel, insensible a la casse)")
             @RequestParam(required = false) String q,
-            @Parameter(description = "Filtre par poste de sante")
+            @Parameter(description = "Filtre par poste de sante (SUPER_ADMIN uniquement ; impose pour les autres roles)")
             @RequestParam(required = false) UUID posteSanteId,
             @Parameter(description = "Numero de page (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Taille de page") @RequestParam(defaultValue = "10") int size
     ) {
-        return PageResponse.of(searchPatientsUseCase.search(q, posteSanteId, page, size)
-                .map(PatienteWebMapper::toSummary));
+        return PageResponse.of(searchPatientsUseCase.search(q, posteScope.resolve(posteSanteId), page, size)
+                .map(p -> PatienteWebMapper.toSummary(p,
+                        ficheConsultationRepository.findByPatienteId(p.getId())
+                                .map(FicheConsultation::getMethodeChoisie).orElse(null),
+                        changementMethodeRepository.findByPatienteId(p.getId()))));
     }
 }

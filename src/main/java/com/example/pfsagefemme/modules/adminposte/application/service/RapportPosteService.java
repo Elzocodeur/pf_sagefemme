@@ -47,15 +47,18 @@ public class RapportPosteService implements GetRapportPosteUseCase {
         YearMonth prev = ym.minusMonths(1);
         LocalDate prevFrom = prev.atDay(1);
         LocalDate prevTo = prev.atEndOfMonth();
+        // Mois en cours : on compare a la meme periode du mois precedent (1er -> meme jour),
+        // sinon l'evolution est toujours tres negative en debut de mois.
+        LocalDate today = LocalDate.now();
+        if (YearMonth.from(today).equals(ym)) {
+            LocalDate sameDay = prevFrom.plusDays(today.getDayOfMonth() - 1L);
+            prevTo = sameDay.isAfter(prevTo) ? prevTo : sameDay;
+        }
 
         long nouvellesPv = patienteRepository.countNouvellesInscritesEntre(from, to, posteSanteId);
         long nouvellesPrev = patienteRepository.countNouvellesInscritesEntre(prevFrom, prevTo, posteSanteId);
-        long total = patienteRepository.countAll(posteSanteId);
-        long anciennesPv = total - nouvellesPv;
+        long anciennesPv = patienteRepository.countAnciennesPv(from, to, posteSanteId, null);
         long actives = patienteRepository.countByStatut(StatutPatienteEnum.ACTIVE, posteSanteId);
-        long inactives = patienteRepository.countByStatut(StatutPatienteEnum.ARRETEE, posteSanteId)
-                + patienteRepository.countByStatut(StatutPatienteEnum.ABANDON, posteSanteId)
-                + patienteRepository.countByStatut(StatutPatienteEnum.INACTIVE, posteSanteId);
         long pvvih = patienteRepository.countPvvihActivesByAge(0, 200, posteSanteId);
 
         Double deltaNouv = delta(nouvellesPv, nouvellesPrev);
@@ -63,6 +66,8 @@ public class RapportPosteService implements GetRapportPosteUseCase {
         List<MethodeLine> section521 = buildSection(TypeRapportEnum.NOUVELLES_PROGRAMME, from, to, posteSanteId);
         List<MethodeLine> section522 = buildSection(TypeRapportEnum.ACTIVES_METHODE, null, null, posteSanteId);
         List<MethodeLine> section524 = buildSection(TypeRapportEnum.INACTIVES_METHODE, from, to, posteSanteId);
+        // Meme definition que le tableau 5.2.4 : le KPI est la somme de ses lignes.
+        long inactives = section524.stream().mapToLong(MethodeLine::total).sum();
 
         String periodeLabel = buildPeriodeLabel(mois, annee);
 

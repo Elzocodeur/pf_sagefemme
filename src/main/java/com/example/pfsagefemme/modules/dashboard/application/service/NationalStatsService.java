@@ -31,7 +31,7 @@ import java.util.List;
 public class NationalStatsService implements GetNationalStatsUseCase {
 
     private static final int RECENT_PATIENTS_LIMIT = 10;
-    private static final int ABANDON_THRESHOLD_DAYS = 90;
+    private static final int ABANDON_THRESHOLD_DAYS = PatienteRepository.ABANDON_THRESHOLD_DAYS;
 
     private final PatienteRepository patienteRepository;
     private final PosteSanteRepository posteSanteRepository;

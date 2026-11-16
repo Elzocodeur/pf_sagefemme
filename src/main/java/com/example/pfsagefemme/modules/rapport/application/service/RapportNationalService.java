@@ -20,7 +20,7 @@ import java.util.List;
  *
  * Calculs :
  *  - Nouvelles PV : patientes inscrites pendant le mois
- *  - Anciennes PV : count des patientes inscrites avant le mois (snapshot)
+ *  - Anciennes PV : patientes inscrites avant le mois et revues pendant le mois
  *  - Actives / Inactives : snapshot par statut
  *  - PVVIH actives : snapshot
  *  - Detail LARC : count des patientes ayant DIU + Implants comme methode courante
@@ -69,11 +69,9 @@ public class RapportNationalService implements GetRapportNationalUseCase {
         long nouvellesPvPrev = patienteRepository.countNouvellesInscritesEntre(prevFrom, prevTo, null);
         Double delta = computeDeltaPercent(nouvellesPv, nouvellesPvPrev);
 
-        long anciennesPv = patienteRepository.countAll(null) - nouvellesPv;
+        long anciennesPv = patienteRepository.countAnciennesPv(from, to, null, null);
         long actives = patienteRepository.countByStatut(StatutPatienteEnum.ACTIVE, null);
-        long inactives = patienteRepository.countByStatut(StatutPatienteEnum.ARRETEE, null)
-                + patienteRepository.countByStatut(StatutPatienteEnum.ABANDON, null)
-                + patienteRepository.countByStatut(StatutPatienteEnum.INACTIVE, null);
+        long inactives = countInactives(from, to, null);
         long pvvihActives = patienteRepository.countPvvihActivesByAge(ALL_AGES_MIN, ALL_AGES_MAX, null);
 
         var stats = new RapportNationalData.Stats(
@@ -115,13 +113,20 @@ public class RapportNationalService implements GetRapportNationalUseCase {
     private RapportNationalData.PosteRow buildPosteRow(PosteSante poste, LocalDate from, LocalDate to) {
         long nouvelles = patienteRepository.countNouvellesInscritesEntre(from, to, poste.getId());
         long total = patienteRepository.countAll(poste.getId());
-        long anciennes = total - nouvelles;
+        long anciennes = patienteRepository.countAnciennesPv(from, to, poste.getId(), null);
         long actives = patienteRepository.countByStatut(StatutPatienteEnum.ACTIVE, poste.getId());
-        long inactives = patienteRepository.countByStatut(StatutPatienteEnum.ARRETEE, poste.getId())
-                + patienteRepository.countByStatut(StatutPatienteEnum.ABANDON, poste.getId())
-                + patienteRepository.countByStatut(StatutPatienteEnum.INACTIVE, poste.getId());
-        long pvvih = patienteRepository.countPvvih(poste.getId());
+        long inactives = countInactives(from, to, poste.getId());
+        long pvvih = patienteRepository.countPvvihActivesByAge(ALL_AGES_MIN, ALL_AGES_MAX, poste.getId());
         return new RapportNationalData.PosteRow(poste, nouvelles, anciennes, actives, inactives, pvvih, total);
+    }
+
+    /** Meme definition que le tableau 5.2.4 du rapport mensuel (arretees du mois + inactives + abandons). */
+    private long countInactives(LocalDate from, LocalDate to, java.util.UUID posteSanteId) {
+        long n = 0;
+        for (MethodeContraceptiveEnum m : MethodeContraceptiveEnum.values()) {
+            n += patienteRepository.countInactivesByMethodeAndAge(m, ALL_AGES_MIN, ALL_AGES_MAX, from, to, posteSanteId);
+        }
+        return n;
     }
 
     private Double computeDeltaPercent(long current, long previous) {

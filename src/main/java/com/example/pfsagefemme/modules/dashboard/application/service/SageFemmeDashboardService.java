@@ -7,6 +7,8 @@ import com.example.pfsagefemme.modules.patient.domain.model.entity.Patiente;
 import com.example.pfsagefemme.modules.patient.domain.port.out.PatienteRepository;
 import com.example.pfsagefemme.shared.domain.enums.StatutCliniqueEnum;
 import com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum;
+import com.example.pfsagefemme.modules.consultation.domain.model.entity.FicheConsultation;
+import com.example.pfsagefemme.modules.consultation.domain.port.out.FicheConsultationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,7 @@ public class SageFemmeDashboardService implements GetSageFemmeDashboardUseCase {
 
     private final PatienteRepository patienteRepository;
     private final VisiteRepository visiteRepository;
+    private final FicheConsultationRepository ficheConsultationRepository;
 
     @Override
     public SageFemmeDashboard load(UUID posteSanteId) {
@@ -98,7 +101,7 @@ public class SageFemmeDashboardService implements GetSageFemmeDashboardUseCase {
 
     private StatCard buildAbandonsCard(UUID posteSanteId) {
         long abandons = patienteRepository
-                .findInactivesSinceThreshold(LocalDate.now().minusDays(90), posteSanteId).size();
+                .findInactivesSinceThreshold(LocalDate.now().minusDays(PatienteRepository.ABANDON_THRESHOLD_DAYS), posteSanteId).size();
         // Tendance "ALERT" affichee dans tous les cas - calcul fin a faire avec un audit log.
         return new StatCard(abandons, null, "Alerte hausse", Trend.ALERT);
     }
@@ -128,24 +131,32 @@ public class SageFemmeDashboardService implements GetSageFemmeDashboardUseCase {
 
     // ====== Abandons a relancer ==============================================
 
+    /**
+     * RDV en retard = patiente suivie (ACTIVE / NOUVELLE) dont le prochain RDV de la derniere
+     * visite est depasse. Meme definition que le registre du chef de poste.
+     * Les cartes "a relancer" ne gardent que les RDV depasses de plus de 15 jours.
+     */
     private AbandonsRelance buildAbandonsRelance(UUID posteSanteId) {
-        LocalDate threshold = LocalDate.now().minusDays(ABANDON_RELANCE_THRESHOLD_DAYS);
-        List<Patiente> candidates = patienteRepository.findInactivesSinceThreshold(threshold, posteSanteId);
+        LocalDate today = LocalDate.now();
+        LocalDate relanceLimit = today.minusDays(ABANDON_RELANCE_THRESHOLD_DAYS);
+        List<Patiente> suivies = patienteRepository.findByStatutPatienteIn(
+                List.of(StatutPatienteEnum.ACTIVE, StatutPatienteEnum.NOUVELLE), posteSanteId);
 
-        List<AbandonRelance> top = candidates.stream()
-                .map(p -> {
-                    Visite last = visiteRepository.findLatestByPatienteId(p.getId()).orElse(null);
-                    LocalDate dernierContact = last != null
-                            ? last.getDate()
-                            : (p.getDateInscription() != null ? p.getDateInscription() : LocalDate.now());
-                    long jours = ChronoUnit.DAYS.between(dernierContact, LocalDate.now());
-                    return new AbandonRelance(p, last, jours);
-                })
+        List<AbandonRelance> enRetard = new java.util.ArrayList<>();
+        for (Patiente p : suivies) {
+            Visite last = visiteRepository.findLatestByPatienteId(p.getId()).orElse(null);
+            if (last == null || last.getDateProchainRdv() == null || !last.getDateProchainRdv().isBefore(today)) continue;
+            long jours = ChronoUnit.DAYS.between(last.getDate(), today);
+            enRetard.add(new AbandonRelance(p, last, jours));
+        }
+
+        List<AbandonRelance> top = enRetard.stream()
+                .filter(a -> a.latestVisite().getDateProchainRdv().isBefore(relanceLimit))
                 .sorted((a, b) -> Long.compare(b.joursSansContact(), a.joursSansContact()))
                 .limit(ABANDON_RELANCE_LIMIT)
                 .toList();
 
-        return new AbandonsRelance(ABANDON_RELANCE_THRESHOLD_DAYS, top, candidates.size());
+        return new AbandonsRelance(ABANDON_RELANCE_THRESHOLD_DAYS, top, enRetard.size());
     }
 
     // ====== Actives recentes =================================================
@@ -155,7 +166,9 @@ public class SageFemmeDashboardService implements GetSageFemmeDashboardUseCase {
                 .map(p -> {
                     Visite last = visiteRepository.findLatestByPatienteId(p.getId()).orElse(null);
                     StatutCliniqueEnum statut = computeStatutClinique(p);
-                    return new ActiveRecente(p, last, statut);
+                    var methode = ficheConsultationRepository.findByPatienteId(p.getId())
+                            .map(FicheConsultation::getMethodeChoisie).orElse(null);
+                    return new ActiveRecente(p, last, statut, methode);
                 })
                 .toList();
     }

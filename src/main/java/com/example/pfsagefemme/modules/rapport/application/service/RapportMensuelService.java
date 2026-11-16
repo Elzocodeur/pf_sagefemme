@@ -41,7 +41,10 @@ import java.util.UUID;
  *
  * Strategie de comptage (rapport pour le mois M de l'annee A) :
  *   - 5.2.1 Nouvelles  : patientes avec dateInscription dans [M-1er, M-fin]
- *   - 5.2.1bis Anciennes: 0 (necessite un audit log historique - TODO)
+ *   - Anciennes PV     : inscrites avant le mois et revues (visite validee) pendant le mois
+ *
+ * Le rapport est individuel : seules les patientes de la sage-femme sont comptees
+ * (contrainte unique mois/annee/sage-femme). La vue poste est le rapport du chef de poste.
  *   - 5.2.2 Actives    : snapshot - patientes statutPatiente = ACTIVE actuellement
  *   - 5.2.3 PVVIH      : snapshot - PVVIH ACTIVE actuellement
  *   - 5.2.4 Inactives  : ARRETEE avec dateArret dans le mois OU ABANDON courant OU INACTIVE courant
@@ -97,21 +100,23 @@ public class RapportMensuelService implements
         LocalDate from = ym.atDay(1);
         LocalDate to = ym.atEndOfMonth();
         UUID posteId = poste == null ? null : poste.getId();
+        // Rapport individuel : seules les patientes suivies par cette sage-femme sont comptees.
+        UUID sfId = sageFemme.getId();
 
         // Lignes des sections 5.2.1 / 5.2.2 / 5.2.4
         addLignes(rapport, TypeRapportEnum.NOUVELLES_PROGRAMME,
-                (m, b) -> patienteRepository.countNouvellesByMethodeAndAge(m, b.getMin(), b.getMax(), from, to, posteId));
+                (m, b) -> patienteRepository.countNouvellesByMethodeAndAge(m, b.getMin(), b.getMax(), from, to, posteId, sfId));
         addLignes(rapport, TypeRapportEnum.ACTIVES_METHODE,
-                (m, b) -> patienteRepository.countActivesByMethodeAndAge(m, b.getMin(), b.getMax(), posteId));
+                (m, b) -> patienteRepository.countActivesByMethodeAndAge(m, b.getMin(), b.getMax(), posteId, sfId));
         addLignes(rapport, TypeRapportEnum.INACTIVES_METHODE,
-                (m, b) -> patienteRepository.countInactivesByMethodeAndAge(m, b.getMin(), b.getMax(), from, to, posteId));
+                (m, b) -> patienteRepository.countInactivesByMethodeAndAge(m, b.getMin(), b.getMax(), from, to, posteId, sfId));
 
         // Section 5.2.3 PVVIH (champs scalaires sur l'entete)
-        long pvvih10_14 = patienteRepository.countPvvihActivesByAge(10, 14, posteId);
-        long pvvih15_19 = patienteRepository.countPvvihActivesByAge(15, 19, posteId);
-        long pvvih20_24 = patienteRepository.countPvvihActivesByAge(20, 24, posteId);
-        long pvvih25_49 = patienteRepository.countPvvihActivesByAge(25, 49, posteId);
-        long pvvih50p = patienteRepository.countPvvihActivesByAge(50, 200, posteId);
+        long pvvih10_14 = patienteRepository.countPvvihActivesByAge(10, 14, posteId, sfId);
+        long pvvih15_19 = patienteRepository.countPvvihActivesByAge(15, 19, posteId, sfId);
+        long pvvih20_24 = patienteRepository.countPvvihActivesByAge(20, 24, posteId, sfId);
+        long pvvih25_49 = patienteRepository.countPvvihActivesByAge(25, 49, posteId, sfId);
+        long pvvih50p = patienteRepository.countPvvihActivesByAge(50, 200, posteId, sfId);
         rapport.setPvvihTranche10_14((int) pvvih10_14);
         rapport.setPvvihTranche15_19((int) pvvih15_19);
         rapport.setPvvihTranche20_24((int) pvvih20_24);
@@ -124,6 +129,8 @@ public class RapportMensuelService implements
                 .findByDateBetweenAndPosteSanteId(from, to, posteId);
         Map<String, Long> matrice = new java.util.HashMap<>();
         for (ChangementMethode c : changements) {
+            var suiviPar = c.getPatiente() == null ? null : c.getPatiente().getSageFemme();
+            if (suiviPar == null || !sfId.equals(suiviPar.getId())) continue;
             String key = c.getAncienneMethode().name() + "|" + c.getNouvelleMethode().name();
             matrice.merge(key, 1L, Long::sum);
         }
@@ -206,7 +213,13 @@ public class RapportMensuelService implements
         long inactivesTotal = sumTotal(section524);
         long pvvihTotal = section523.values().stream().mapToLong(Long::longValue).sum();
 
-        RapportData.Stats stats = new RapportData.Stats(nouvellesTotal, 0L, activesTotal, inactivesTotal, pvvihTotal);
+        YearMonth ym = YearMonth.of(rapport.getAnnee(), rapport.getMois());
+        long anciennesTotal = patienteRepository.countAnciennesPv(
+                ym.atDay(1), ym.atEndOfMonth(),
+                rapport.getPosteSante() == null ? null : rapport.getPosteSante().getId(),
+                rapport.getSageFemme() == null ? null : rapport.getSageFemme().getId());
+
+        RapportData.Stats stats = new RapportData.Stats(nouvellesTotal, anciennesTotal, activesTotal, inactivesTotal, pvvihTotal);
 
         return new RapportData(rapport, stats, section521, List.of(), section522, section523, section524, matrice);
     }

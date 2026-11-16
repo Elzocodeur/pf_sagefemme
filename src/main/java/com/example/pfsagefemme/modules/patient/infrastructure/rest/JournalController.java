@@ -3,6 +3,7 @@ package com.example.pfsagefemme.modules.patient.infrastructure.rest;
 import com.example.pfsagefemme.modules.patient.domain.port.in.GetDailyJournalUseCase;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.dto.DailyJournalResponse;
 import com.example.pfsagefemme.modules.patient.infrastructure.rest.mapper.DailyJournalWebMapper;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class JournalController {
 
     private final GetDailyJournalUseCase getDailyJournalUseCase;
+    private final PosteScope posteScope;
 
     @Operation(
             summary = "Journal du jour",
@@ -52,7 +54,7 @@ public class JournalController {
     ) {
         LocalDate target = date == null ? LocalDate.now() : date;
         return DailyJournalWebMapper.toResponse(
-                getDailyJournalUseCase.forDate(target, posteSanteId, filter)
+                getDailyJournalUseCase.forDate(target, posteScope.resolve(posteSanteId), filter)
         );
     }
 }

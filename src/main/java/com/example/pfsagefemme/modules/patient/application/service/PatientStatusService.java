@@ -38,7 +38,7 @@ public class PatientStatusService implements
         ListPatientsByStatusUseCase,
         UpdatePatientStatusUseCase {
 
-    private static final int DEFAULT_ABANDON_THRESHOLD_DAYS = 90;
+    private static final int DEFAULT_ABANDON_THRESHOLD_DAYS = PatienteRepository.ABANDON_THRESHOLD_DAYS;
 
     private final PatienteRepository patienteRepository;
     private final FicheConsultationRepository ficheConsultationRepository;

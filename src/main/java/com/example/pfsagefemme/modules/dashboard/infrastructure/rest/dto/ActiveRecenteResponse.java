@@ -13,5 +13,7 @@ public record ActiveRecenteResponse(
         String prenom,
         String nom,
         @Schema(description = "Date de la derniere visite (null si aucune)") LocalDate derniereVisite,
-        @Schema(description = "Statut clinique calcule pour le badge") StatutCliniqueEnum statutClinique
+        @Schema(description = "Statut clinique calcule pour le badge") StatutCliniqueEnum statutClinique,
+        @Schema(description = "Methode en cours") com.example.pfsagefemme.shared.domain.enums.MethodeContraceptiveEnum methode,
+        String methodeLabel
 ) {}

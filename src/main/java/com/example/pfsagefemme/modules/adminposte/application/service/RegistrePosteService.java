@@ -47,6 +47,8 @@ public class RegistrePosteService implements GetRegistrePosteUseCase {
         long totalActives = patienteRepository.countByStatut(StatutPatienteEnum.ACTIVE, posteSanteId);
 
         long avecRetard = registre.stream()
+                // Meme definition que le dashboard sage-femme : patientes suivies dont le RDV est depasse
+                .filter(r -> r.statut() == StatutPatienteEnum.ACTIVE || r.statut() == StatutPatienteEnum.NOUVELLE)
                 .filter(r -> r.prochainRdv() != null && r.prochainRdv().isBefore(LocalDate.now()))
                 .count();
 

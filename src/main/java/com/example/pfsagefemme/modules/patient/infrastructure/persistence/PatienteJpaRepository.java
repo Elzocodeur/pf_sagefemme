@@ -102,18 +102,17 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
                                           @Param("posteSanteId") UUID posteSanteId);
 
     /**
-     * Patientes ACTIVE dont la derniere visite est anterieure au seuil
-     * (ou sans visite du tout depuis une date d'inscription assez ancienne).
+     * Definition unique de l'abandon : statut ABANDON, ou patiente ACTIVE/NOUVELLE
+     * inscrite avant le seuil et sans aucune visite depuis le seuil.
      */
     @Query("""
             SELECT p FROM Patiente p
-            WHERE p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
-              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
-              AND NOT EXISTS (
-                  SELECT 1 FROM Visite v
-                  WHERE v.patiente = p AND v.date >= :threshold
-              )
-              AND p.dateInscription < :threshold
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
+                   OR (p.statutPatiente IN (com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE,
+                                            com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.NOUVELLE)
+                       AND p.dateInscription < :threshold
+                       AND NOT EXISTS (SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold)))
             ORDER BY p.dateInscription
             """)
     List<Patiente> findInactivesSince(@Param("threshold") LocalDate threshold,
@@ -137,13 +136,15 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
               AND f.methodeChoisie = :methode
               AND p.age BETWEEN :ageMin AND :ageMax
               AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
             """)
     long countNouvellesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
                                        @Param("ageMin") int ageMin,
                                        @Param("ageMax") int ageMax,
                                        @Param("from") LocalDate from,
                                        @Param("to") LocalDate to,
-                                       @Param("posteSanteId") UUID posteSanteId);
+                                       @Param("posteSanteId") UUID posteSanteId,
+                                       @Param("sageFemmeId") UUID sageFemmeId);
 
     @Query("""
             SELECT COUNT(DISTINCT p)
@@ -153,11 +154,13 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
               AND f.methodeChoisie = :methode
               AND p.age BETWEEN :ageMin AND :ageMax
               AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
             """)
     long countActivesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
                                      @Param("ageMin") int ageMin,
                                      @Param("ageMax") int ageMax,
-                                     @Param("posteSanteId") UUID posteSanteId);
+                                     @Param("posteSanteId") UUID posteSanteId,
+                                     @Param("sageFemmeId") UUID sageFemmeId);
 
     @Query("""
             SELECT COUNT(DISTINCT p)
@@ -166,11 +169,16 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
               AND f.methodeChoisie = :methode
               AND p.age BETWEEN :ageMin AND :ageMax
               AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
               AND (
                   (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ARRETEE
                        AND p.dateArret BETWEEN :from AND :to)
-                  OR p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
                   OR p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.INACTIVE
+                  OR (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
+                     OR (p.statutPatiente IN (com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE,
+                                              com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.NOUVELLE)
+                         AND p.dateInscription < :threshold
+                         AND NOT EXISTS (SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold)))
               )
             """)
     long countInactivesByMethodeAndAge(@Param("methode") MethodeContraceptiveEnum methode,
@@ -178,7 +186,9 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
                                        @Param("ageMax") int ageMax,
                                        @Param("from") LocalDate from,
                                        @Param("to") LocalDate to,
-                                       @Param("posteSanteId") UUID posteSanteId);
+                                       @Param("threshold") LocalDate threshold,
+                                       @Param("posteSanteId") UUID posteSanteId,
+                                       @Param("sageFemmeId") UUID sageFemmeId);
 
     @Query("""
             SELECT COUNT(p) FROM Patiente p
@@ -186,10 +196,42 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
               AND p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
               AND p.age BETWEEN :ageMin AND :ageMax
               AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
             """)
     long countPvvihActivesByAge(@Param("ageMin") int ageMin,
                                 @Param("ageMax") int ageMax,
-                                @Param("posteSanteId") UUID posteSanteId);
+                                @Param("posteSanteId") UUID posteSanteId,
+                                @Param("sageFemmeId") UUID sageFemmeId);
+
+    /** Abandons (definition unique, cf. findInactivesSince). */
+    @Query("""
+            SELECT COUNT(p) FROM Patiente p
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
+              AND (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
+                   OR (p.statutPatiente IN (com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE,
+                                            com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.NOUVELLE)
+                       AND p.dateInscription < :threshold
+                       AND NOT EXISTS (SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold)))
+            """)
+    long countAbandons(@Param("threshold") LocalDate threshold,
+                       @Param("posteSanteId") UUID posteSanteId,
+                       @Param("sageFemmeId") UUID sageFemmeId);
+
+    /** Anciennes PV : inscrites avant le mois et revues (visite validee) pendant le mois. */
+    @Query("""
+            SELECT COUNT(DISTINCT p) FROM Patiente p
+            WHERE p.dateInscription < :from
+              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+              AND (:sageFemmeId IS NULL OR p.sageFemme.id = :sageFemmeId)
+              AND EXISTS (SELECT 1 FROM Visite v
+                          WHERE v.patiente = p AND v.date BETWEEN :from AND :to
+                            AND v.statut = com.example.pfsagefemme.shared.domain.enums.StatutVisiteEnum.VALIDEE)
+            """)
+    long countAnciennesPv(@Param("from") LocalDate from,
+                          @Param("to") LocalDate to,
+                          @Param("posteSanteId") UUID posteSanteId,
+                          @Param("sageFemmeId") UUID sageFemmeId);
 
     // ====== Journal du jour ==================================================
 
@@ -292,15 +334,15 @@ public interface PatienteJpaRepository extends JpaRepository<Patiente, UUID> {
 
     @Query("""
             SELECT p FROM Patiente p
-            WHERE p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE
-              AND (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
+            WHERE (:posteSanteId IS NULL OR p.posteSante.id = :posteSanteId)
               AND (:q IS NULL OR :q = ''
                    OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%'))
                    OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :q, '%')))
-              AND NOT EXISTS (
-                  SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold
-              )
-              AND p.dateInscription < :threshold
+              AND (p.statutPatiente = com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ABANDON
+                   OR (p.statutPatiente IN (com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.ACTIVE,
+                                            com.example.pfsagefemme.shared.domain.enums.StatutPatienteEnum.NOUVELLE)
+                       AND p.dateInscription < :threshold
+                       AND NOT EXISTS (SELECT 1 FROM Visite v WHERE v.patiente = p AND v.date >= :threshold)))
             ORDER BY p.dateInscription
             """)
     Page<Patiente> findInactivesSincePaged(@Param("threshold") LocalDate threshold,

@@ -6,7 +6,10 @@ import com.example.pfsagefemme.modules.rapport.domain.port.in.GetRapportMensuelU
 import com.example.pfsagefemme.modules.rapport.domain.port.in.SubmitRapportMensuelUseCase;
 import com.example.pfsagefemme.modules.rapport.infrastructure.rest.dto.RapportMensuelResponse;
 import com.example.pfsagefemme.modules.rapport.infrastructure.rest.mapper.RapportMensuelWebMapper;
+import com.example.pfsagefemme.modules.user.infrastructure.security.PosteScope;
+import com.example.pfsagefemme.shared.domain.enums.RoleEnum;
 import com.example.pfsagefemme.shared.infrastructure.security.SecurityUtils;
+import org.springframework.security.access.AccessDeniedException;
 import com.example.pfsagefemme.shared.infrastructure.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,6 +43,7 @@ public class RapportMensuelController {
     private final GenerateRapportMensuelUseCase generateUseCase;
     private final GetRapportMensuelUseCase getUseCase;
     private final SubmitRapportMensuelUseCase submitUseCase;
+    private final PosteScope posteScope;
 
     @Operation(
             summary = "Genere le rapport mensuel pour la periode (idempotent sur BROUILLON)",
@@ -63,7 +67,7 @@ public class RapportMensuelController {
             @RequestParam(required = false) UUID posteSanteId
     ) {
         UUID sageFemmeId = SecurityUtils.requireCurrentUserId();
-        var data = generateUseCase.generate(new GenerateRapportMensuelUseCase.Command(mois, annee, posteSanteId, sageFemmeId));
+        var data = generateUseCase.generate(new GenerateRapportMensuelUseCase.Command(mois, annee, posteScope.resolve(posteSanteId), sageFemmeId));
         URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path(ApiPaths.API_V1 + "/rapports/{id}")
                 .buildAndExpand(data.rapport().getId()).toUri();
@@ -79,7 +83,11 @@ public class RapportMensuelController {
     @PreAuthorize("hasAnyRole('SAGE_FEMME', 'ADMIN_POSTE', 'SUPER_ADMIN')")
     @GetMapping("/{id}")
     public RapportMensuelResponse byId(@PathVariable UUID id) {
-        return RapportMensuelWebMapper.toResponse(getUseCase.byId(id));
+        var data = getUseCase.byId(id);
+        var poste = data.rapport().getPosteSante();
+        posteScope.checkAccess(poste == null ? null : poste.getId());
+        if (SecurityUtils.currentRole().orElse(null) == RoleEnum.SAGE_FEMME) checkOwner(id);
+        return RapportMensuelWebMapper.toResponse(data);
     }
 
     @Operation(
@@ -109,6 +117,7 @@ public class RapportMensuelController {
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/{id}/validate")
     public RapportMensuelResponse validate(@PathVariable UUID id) {
+        checkOwner(id);
         RapportMensuel updated = submitUseCase.valider(id);
         return RapportMensuelWebMapper.toResponse(getUseCase.byId(updated.getId()));
     }
@@ -121,7 +130,16 @@ public class RapportMensuelController {
     @PreAuthorize("hasRole('SAGE_FEMME')")
     @PostMapping("/{id}/submit")
     public RapportMensuelResponse submit(@PathVariable UUID id) {
+        checkOwner(id);
         RapportMensuel updated = submitUseCase.soumettre(id);
         return RapportMensuelWebMapper.toResponse(getUseCase.byId(updated.getId()));
+    }
+
+    /** Une sage-femme ne peut agir que sur son propre rapport. */
+    private void checkOwner(UUID rapportId) {
+        var sf = getUseCase.byId(rapportId).rapport().getSageFemme();
+        if (sf == null || !sf.getId().equals(SecurityUtils.requireCurrentUserId())) {
+            throw new AccessDeniedException("Rapport d'une autre sage-femme");
+        }
     }
 }

@@ -44,5 +44,6 @@ public record PatienteResponse(
         LocalDate dateArret,
         LocalDate dateInscription,
         UUID posteSanteId,
+        String posteSanteNom,
         UUID sageFemmeId
 ) {}
